@@ -2,6 +2,7 @@ import { getDb, setMeta, transaction } from './db.ts'
 import { lookupIp } from './geo.ts'
 import { listNexusUsers } from './nexus.ts'
 import {
+  type SignedPacket,
   PkarrNotFound,
   homeserverEndpoints,
   homeserverOfUser,
@@ -126,7 +127,7 @@ export async function resolveHomeservers(onlyPubkey?: string) {
   const update = db.prepare(`
     UPDATE homeservers SET resolved_at = ?, record_ts = ?, resolve_error = NULL, domain = ?, domain_port = ?,
       pubky_port = ?, ipv4 = ?, ipv6 = ?, country = ?, country_name = ?, asn = ?, as_org = ?,
-      geo_ip = ?, operator = ?, claim_verified = ?
+      geo_ip = ?, operator = ?, claim_verified = ?, claim_method = ?, operator_confirmed = ?
     WHERE pubkey = ?`)
   await mapLimit(rows, 4, async ({ pubkey }) => {
     try {
@@ -137,10 +138,7 @@ export async function resolveHomeservers(onlyPubkey?: string) {
       const hint = [...ep.ipv4, ...ep.ipv6].find(isPublicIp) ?? null
       const ip = (ep.domain ? await resolveDomainIp(ep.domain) : null) ?? hint
       const geo = ip ? await lookupIp(ip) : null
-      const claim = await checkClaim(
-        pubkey,
-        keyField(packet, pubkey, 'operator')[0] ?? null,
-      )
+      const claim = await checkClaim(pubkey, packet, ep.domain)
       update.run(
         Date.now(),
         Number(packet.timestampUs / 1000n),
@@ -156,6 +154,8 @@ export async function resolveHomeservers(onlyPubkey?: string) {
         ip,
         claim.operator,
         claim.verified ? 1 : 0,
+        claim.method,
+        claim.confirmed ? 1 : 0,
         pubkey,
       )
     } catch (e) {
@@ -170,16 +170,83 @@ export async function resolveHomeservers(onlyPubkey?: string) {
 }
 
 /** The operator must confirm with an `operates=<homeserver>` TXT in their own record. */
-async function checkClaim(homeserver: string, operator: string | null) {
-  if (!operator) return { operator: null, verified: false }
+const KEY_IN_TXT =
+  /^operator=(?:pubky)?([ybndrfg8ejkmcpqxot1uwisza345h769]{52})$/i
+const USER_AGENT = 'netky/0.1 (+https://netky.pubky.pastalabs.dev/about)'
+
+/**
+ * Claims. The server side must be proven by whoever controls the server:
+ * a TXT "operator=<key>" at _netky.<domain> (the domain the homeserver's own
+ * signed record announces), or a `_netky` TXT in that record for servers
+ * that publish it themselves. A stock homeserver rewrites its record every
+ * hour, hence DNS as the usual way.
+ * The operator then confirms from their own space: a TXT "operates=<server>"
+ * in their record, or /pub/netky/operates.txt on their homeserver.
+ */
+async function checkClaim(
+  homeserver: string,
+  packet: SignedPacket,
+  domain: string | null,
+) {
+  let operator: string | null =
+    keyField(packet, homeserver, 'operator')[0] ?? null
+  let method: 'pkarr' | 'dns' | null = operator ? 'pkarr' : null
+  if (!operator && domain) {
+    operator = await dnsOperator(domain)
+    if (operator) method = 'dns'
+  }
+  if (!operator)
+    return { operator: null, verified: false, method: null, confirmed: false }
+  return {
+    operator,
+    verified: true,
+    method,
+    confirmed: await operatorConfirms(operator, homeserver),
+  }
+}
+
+async function dnsOperator(domain: string): Promise<string | null> {
+  const { resolveTxt } = await import('node:dns/promises')
   try {
-    const packet = await resolvePacket(operator)
-    return {
-      operator,
-      verified: keyField(packet, operator, 'operates').includes(homeserver),
+    for (const record of await resolveTxt(`_netky.${domain}`)) {
+      const m = record.join('').trim().match(KEY_IN_TXT)
+      if (m) return m[1].toLowerCase()
     }
   } catch {
-    return { operator, verified: false }
+    // No record (ENODATA / ENOTFOUND): not claimed.
+  }
+  return null
+}
+
+async function operatorConfirms(
+  operator: string,
+  homeserver: string,
+): Promise<boolean> {
+  try {
+    const packet = await resolvePacket(operator)
+    if (keyField(packet, operator, 'operates').includes(homeserver)) return true
+    // Otherwise a public file on the operator's own homeserver.
+    const home = homeserverOfUser(operator, packet)
+    if (!home) return false
+    const ep = homeserverEndpoints(home, await resolvePacket(home))
+    if (!ep.domain) return false
+    const port =
+      ep.domainPort && ep.domainPort !== 443 ? `:${ep.domainPort}` : ''
+    const res = await fetch(
+      `https://${ep.domain}${port}/pub/netky/operates.txt`,
+      {
+        headers: { 'pubky-host': operator, 'user-agent': USER_AGENT },
+        signal: AbortSignal.timeout(10_000),
+      },
+    )
+    if (!res.ok) return false
+    const words = (await res.text())
+      .slice(0, 20_000)
+      .toLowerCase()
+      .split(/[\s,;]+/)
+    return words.some((w) => w.replace(/^pubky/, '') === homeserver)
+  } catch {
+    return false
   }
 }
 

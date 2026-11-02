@@ -98,6 +98,12 @@ const MIGRATIONS: Array<string> = [
   ALTER TABLE homeservers ADD COLUMN signup_mode TEXT;
   ALTER TABLE homeservers ADD COLUMN signup_checked_at INTEGER;
   `,
+  // Claims: the server side is proven by a DNS TXT on its domain (or a TXT in
+  // its own PKARR record); the operator confirms from their own space.
+  `
+  ALTER TABLE homeservers ADD COLUMN claim_method TEXT;
+  ALTER TABLE homeservers ADD COLUMN operator_confirmed INTEGER NOT NULL DEFAULT 0;
+  `,
 ]
 
 function migrate(d: DatabaseSync) {

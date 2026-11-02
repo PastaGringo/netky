@@ -24,14 +24,18 @@ A homeserver that no user known to Nexus points to stays invisible.
 
 ## Claiming a homeserver
 
-Two TXT records, one on each side:
+Server side, on the domain the homeserver announces in its signed record:
 
 ```
-# in the homeserver's PKARR record
-_netky  TXT  "operator=<operator pubky key>"
-# in the operator's PKARR record
-_netky  TXT  "operates=<homeserver pubky key>"
+_netky.<homeserver domain>  TXT  "operator=<operator pubky key>"
 ```
+
+(or a `_netky` TXT in the homeserver's own PKARR record, for servers that
+publish it themselves: a stock homeserver rewrites its record every hour).
+
+Operator side, optional confirmation: a public file
+`pubky://<operator>/pub/netky/operates.txt` listing the homeserver keys, or a
+`_netky TXT "operates=<homeserver key>"` in the operator's PKARR record.
 
 ## API
 

@@ -165,14 +165,21 @@ function Detail() {
           <Item label="operator">
             {h.operator ? (
               <>
-                <span className="break-all">pubky{h.operator}</span>{' '}
-                {h.claimVerified ? (
-                  <span className="text-cyan">(confirmed both ways)</span>
-                ) : (
-                  <span className="text-amber">
-                    (not confirmed by the operator)
-                  </span>
-                )}
+                <span className="break-all">pubky{h.operator}</span>
+                <span className="block text-xs text-dim">
+                  named{' '}
+                  {h.claimMethod === 'dns'
+                    ? 'in the DNS of the server’s domain'
+                    : 'in the server’s own PKARR record'}
+                  {' · '}
+                  {h.operatorConfirmed ? (
+                    <span className="text-cyan">confirmed by the operator</span>
+                  ) : (
+                    <span className="text-amber">
+                      not confirmed by the operator yet
+                    </span>
+                  )}
+                </span>
               </>
             ) : (
               <>

@@ -43,7 +43,11 @@ export interface Homeserver {
     error: string | null
   } | null
   operator: string | null
+  /** Whoever controls the server named an operator (DNS or PKARR TXT). */
   claimVerified: boolean
+  claimMethod: 'dns' | 'pkarr' | null
+  /** The operator confirmed from their own record or homeserver. */
+  operatorConfirmed: boolean
   /** 'open': anyone can sign up; 'token': invite only; null: unknown. */
   signup: 'open' | 'token' | null
   server: string | null
@@ -76,6 +80,8 @@ interface Row {
   tls_error: string | null
   operator: string | null
   claim_verified: number
+  claim_method: string | null
+  operator_confirmed: number
   signup_mode: string | null
 }
 
@@ -149,6 +155,11 @@ function toHomeserver(
           },
     operator: r.operator,
     claimVerified: r.claim_verified === 1,
+    claimMethod:
+      r.claim_method === 'dns' || r.claim_method === 'pkarr'
+        ? r.claim_method
+        : null,
+    operatorConfirmed: r.operator_confirmed === 1,
     signup:
       r.signup_mode === 'open' || r.signup_mode === 'token'
         ? r.signup_mode

@@ -99,22 +99,38 @@ function About() {
 
       <H2 id="claim">claim your homeserver</H2>
       <p>
-        A claim links a homeserver to its operator&apos;s Pubky key. It takes
-        two TXT records, one on each side, so that nobody can claim a server
-        they do not run, and nobody can be named as operator without agreeing.
+        A claim links a homeserver to its operator&apos;s Pubky key. It has two
+        sides: one proves you control the server, the other that the key you
+        name agrees.
       </p>
       <p>
-        <strong>1.</strong> In the <strong>homeserver&apos;s</strong> PKARR
-        record (signed with the homeserver&apos;s key), add:
+        <strong>1. The server.</strong> On the domain your homeserver announces
+        (the one shown on its Netky page), add a DNS record:
       </p>
-      <Code>{'_netky  TXT  "operator=<your pubky key>"'}</Code>
+      <Code>
+        {'_netky.<your homeserver domain>  TXT  "operator=<your pubky key>"'}
+      </Code>
       <p>
-        <strong>2.</strong> In <strong>your own</strong> PKARR record, add:
+        That domain comes from the homeserver&apos;s own signed record, so only
+        whoever runs the server can set it. If you publish the homeserver&apos;s
+        PKARR record yourself, a <code>{'_netky TXT "operator=<key>"'}</code> in
+        that record works too. A stock homeserver rewrites its record every
+        hour, so for most people DNS is the way.
       </p>
-      <Code>{'_netky  TXT  "operates=<homeserver pubky key>"'}</Code>
       <p>
-        Netky picks them up within the hour. To revoke a claim, remove either
-        record. The <code>pubky</code> prefix on keys is optional.
+        <strong>2. The operator.</strong> From your own Pubky account, confirm
+        by publishing a public file that lists the homeservers you run, one key
+        per line:
+      </p>
+      <Code>{'pubky://<your pubky key>/pub/netky/operates.txt'}</Code>
+      <p>
+        A <code>{'_netky TXT "operates=<homeserver key>"'}</code> in your own
+        PKARR record works too. Until then, the server shows as claimed with the
+        operator &quot;not confirmed&quot;.
+      </p>
+      <p>
+        Netky picks changes up within the hour. To revoke a claim, remove the
+        DNS record. The <code>pubky</code> prefix on keys is optional.
       </p>
 
       <H2>api</H2>
