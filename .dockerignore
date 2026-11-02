@@ -1,0 +1,10 @@
+node_modules
+.output
+.vercel
+.git
+.tanstack
+.nitro
+.vite
+.env
+.env.*
+data

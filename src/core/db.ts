@@ -1,0 +1,144 @@
+import { mkdirSync } from 'node:fs'
+import { dirname } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
+
+export const DATA_DIR = process.env.NETKY_DATA_DIR ?? './data'
+const DB_PATH = process.env.NETKY_DB ?? `${DATA_DIR}/netky.sqlite`
+
+let db: DatabaseSync | null = null
+
+export function getDb(): DatabaseSync {
+  if (db) return db
+  mkdirSync(dirname(DB_PATH), { recursive: true })
+  db = new DatabaseSync(DB_PATH)
+  // The worker writes, the web server mostly reads: WAL lets both run at once.
+  db.exec(
+    'PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;',
+  )
+  migrate(db)
+  return db
+}
+
+const MIGRATIONS: Array<string> = [
+  `
+  CREATE TABLE users (
+    pubkey        TEXT PRIMARY KEY,
+    homeserver    TEXT,
+    first_seen    INTEGER NOT NULL,
+    resolved_at   INTEGER,
+    record_ts     INTEGER,
+    resolve_error TEXT
+  );
+  CREATE INDEX users_homeserver ON users(homeserver);
+  CREATE INDEX users_resolved_at ON users(resolved_at);
+
+  CREATE TABLE homeservers (
+    pubkey          TEXT PRIMARY KEY,
+    source          TEXT NOT NULL,          -- 'users' | 'submitted'
+    first_seen      INTEGER NOT NULL,
+    resolved_at     INTEGER,
+    record_ts       INTEGER,
+    resolve_error   TEXT,
+    domain          TEXT,
+    domain_port     INTEGER,
+    pubky_port      INTEGER,
+    ipv4            TEXT,                   -- JSON array
+    ipv6            TEXT,                   -- JSON array
+    country         TEXT,
+    country_name    TEXT,
+    asn             INTEGER,
+    as_org          TEXT,
+    user_count      INTEGER NOT NULL DEFAULT 0,
+    last_probe_at   INTEGER,
+    last_ok         INTEGER,
+    last_latency_ms INTEGER,
+    last_error      TEXT,
+    is_pubky        INTEGER,                -- root answered "Pubky Homeserver"
+    server_header   TEXT,
+    powered_by      TEXT,
+    tls_checked_at  INTEGER,
+    tls_ok          INTEGER,
+    tls_issuer      TEXT,
+    tls_expires_at  INTEGER,
+    tls_error       TEXT
+  );
+
+  CREATE TABLE probes (
+    homeserver TEXT NOT NULL,
+    at         INTEGER NOT NULL,
+    ok         INTEGER NOT NULL,
+    latency_ms INTEGER,
+    status     INTEGER,
+    error      TEXT
+  );
+  CREATE INDEX probes_hs_at ON probes(homeserver, at);
+
+  CREATE TABLE snapshots (
+    day              TEXT PRIMARY KEY,      -- YYYY-MM-DD (UTC)
+    users_known      INTEGER NOT NULL,
+    users_resolved   INTEGER NOT NULL,
+    homeservers      INTEGER NOT NULL,
+    homeservers_up   INTEGER NOT NULL
+  );
+
+  CREATE TABLE meta (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
+  `,
+  // Operator claims: a TXT "operator=<key>" in the homeserver's own PKARR
+  // record, confirmed by a TXT "operates=<homeserver key>" in the operator's.
+  `
+  ALTER TABLE homeservers ADD COLUMN operator TEXT;
+  ALTER TABLE homeservers ADD COLUMN claim_verified INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE homeservers ADD COLUMN geo_ip TEXT;
+  `,
+]
+
+function migrate(d: DatabaseSync) {
+  d.exec('CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)')
+  const row = d.prepare('SELECT version FROM schema_version').get() as
+    { version: number } | undefined
+  let version = row?.version ?? 0
+  if (!row) d.prepare('INSERT INTO schema_version (version) VALUES (0)').run()
+  while (version < MIGRATIONS.length) {
+    d.exec('BEGIN')
+    try {
+      d.exec(MIGRATIONS[version])
+      version++
+      d.prepare('UPDATE schema_version SET version = ?').run(version)
+      d.exec('COMMIT')
+    } catch (e) {
+      d.exec('ROLLBACK')
+      throw e
+    }
+  }
+}
+
+export function getMeta(key: string): string | null {
+  const row = getDb()
+    .prepare('SELECT value FROM meta WHERE key = ?')
+    .get(key) as { value: string } | undefined
+  return row?.value ?? null
+}
+
+export function setMeta(key: string, value: string) {
+  getDb()
+    .prepare(
+      'INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+    )
+    .run(key, value)
+}
+
+export function transaction<T>(fn: () => T): T {
+  const d = getDb()
+  d.exec('BEGIN')
+  try {
+    const out = fn()
+    d.exec('COMMIT')
+    return out
+  } catch (e) {
+    d.exec('ROLLBACK')
+    throw e
+  }
+}

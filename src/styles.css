@@ -1,0 +1,281 @@
+/* source('../') anchors the scan on the project, whatever directory the dev
+   server is started from. */
+@import 'tailwindcss' source('../');
+@import '@fontsource/vt323/400.css';
+@import '@fontsource-variable/jetbrains-mono/index.css';
+
+:root {
+  color-scheme: dark;
+
+  --void: #070707;
+  --panel: #0e0e0f;
+  --panel-raised: #151517;
+  --line: #2a2a2d;
+  --text: #dcd8d0;
+  --dim: #948f86;
+  --red: #ff3442;
+  --red-deep: #9e0f1c;
+  --green: #3dff8a;
+  --amber: #ffb547;
+  --cyan: #29e6ff;
+}
+
+@theme inline {
+  --font-mono:
+    'JetBrains Mono Variable', ui-monospace, 'Cascadia Mono', Consolas,
+    monospace;
+  --font-display: 'VT323', 'JetBrains Mono Variable', ui-monospace, monospace;
+
+  --color-void: var(--void);
+  --color-panel: var(--panel);
+  --color-panel-raised: var(--panel-raised);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-dim: var(--dim);
+  --color-red: var(--red);
+  --color-red-deep: var(--red-deep);
+  --color-green: var(--green);
+  --color-amber: var(--amber);
+  --color-cyan: var(--cyan);
+}
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background:
+      radial-gradient(
+        ellipse 80% 50% at 50% -10%,
+        rgb(158 15 28 / 0.28),
+        transparent 70%
+      ),
+      var(--void);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    overflow-wrap: break-word;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--red);
+    color: var(--void);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--green);
+    outline-offset: 3px;
+  }
+
+  [id] {
+    scroll-margin-top: 80px;
+  }
+}
+
+/* CRT: scanlines and a faint vignette laid over the whole page. Purely
+   decorative, so it never takes a click. */
+.crt::before,
+.crt::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+}
+
+.crt::before {
+  background: repeating-linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 0.025) 0,
+    rgb(255 255 255 / 0.025) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+.crt::after {
+  background: radial-gradient(
+    ellipse at center,
+    transparent 55%,
+    rgb(0 0 0 / 0.55) 100%
+  );
+}
+
+/* Glitch title: two offset copies of the text, sliced by clip-path. */
+.glitch {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.glitch::before {
+  color: var(--cyan);
+  transform: translate(-3px, 0);
+  mix-blend-mode: screen;
+  animation: glitch-a 3.2s infinite steps(1);
+}
+
+.glitch::after {
+  color: var(--red);
+  transform: translate(3px, 0);
+  mix-blend-mode: screen;
+  animation: glitch-b 2.7s infinite steps(1);
+}
+
+@keyframes glitch-a {
+  0%,
+  86%,
+  100% {
+    clip-path: inset(100% 0 0 0);
+  }
+  88% {
+    clip-path: inset(12% 0 64% 0);
+  }
+  91% {
+    clip-path: inset(58% 0 18% 0);
+  }
+  94% {
+    clip-path: inset(30% 0 46% 0);
+  }
+}
+
+@keyframes glitch-b {
+  0%,
+  80%,
+  100% {
+    clip-path: inset(100% 0 0 0);
+  }
+  82% {
+    clip-path: inset(70% 0 6% 0);
+  }
+  86% {
+    clip-path: inset(4% 0 80% 0);
+  }
+  90% {
+    clip-path: inset(40% 0 38% 0);
+  }
+}
+
+.glitch-hover:hover {
+  animation: jitter 0.25s steps(2) 2;
+}
+
+@keyframes jitter {
+  0% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-2px, 1px);
+  }
+  100% {
+    transform: translate(1px, -1px);
+  }
+}
+
+.cursor::after {
+  content: '█';
+  margin-left: 0.15em;
+  color: var(--green);
+  animation: blink 1.05s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Boot log: each line appears after the previous one. */
+.boot-line {
+  opacity: 0;
+  animation: boot-in 0.01s forwards;
+  animation-delay: calc(var(--i, 0) * 260ms + 200ms);
+}
+
+@keyframes boot-in {
+  to {
+    opacity: 1;
+  }
+}
+
+.typed {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 100%;
+  width: 0;
+  animation: type 1.4s steps(var(--chars, 16)) 0.3s forwards;
+}
+
+@keyframes type {
+  to {
+    width: calc(var(--chars, 16) * 1ch);
+  }
+}
+
+.flicker {
+  animation: flicker 6s infinite;
+}
+
+@keyframes flicker {
+  0%,
+  95%,
+  100% {
+    opacity: 1;
+  }
+  96% {
+    opacity: 0.6;
+  }
+  97% {
+    opacity: 1;
+  }
+  98% {
+    opacity: 0.75;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glitch::before,
+  .glitch::after,
+  .glitch-hover:hover,
+  .cursor::after,
+  .flicker {
+    animation: none;
+  }
+
+  .glitch::before,
+  .glitch::after {
+    clip-path: inset(100% 0 0 0);
+  }
+
+  .boot-line {
+    animation: none;
+    opacity: 1;
+  }
+
+  .typed {
+    animation: none;
+    width: auto;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+}

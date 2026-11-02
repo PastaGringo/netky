@@ -1,0 +1,13 @@
+node_modules
+.DS_Store
+dist
+.env
+.env.*
+!.env.example
+.nitro
+.tanstack
+.vite
+.output
+.vercel
+.claude/current-model
+data
