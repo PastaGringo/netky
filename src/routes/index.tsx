@@ -236,7 +236,10 @@ function Row({ h }: { h: Homeserver }) {
           </span>
           <span className="block truncate text-xs text-dim">
             {h.domain ? shortKey(h.pubkey) : 'no ICANN domain'}
-            {h.claimVerified ? (
+            {h.claimVerified && !h.operatorConfirmed ? (
+              <span className="text-cyan"> · claimed</span>
+            ) : null}
+            {h.claimVerified && h.operatorConfirmed ? (
               <span className="text-cyan">
                 {' · run by '}
                 <Avatar

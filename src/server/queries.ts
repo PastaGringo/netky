@@ -165,9 +165,14 @@ function toHomeserver(
         ? r.claim_method
         : null,
     operatorConfirmed: r.operator_confirmed === 1,
-    operatorName: r.operator ? r.operator_name : null,
+    // Name and avatar only once the operator confirmed: otherwise anyone could
+    // name a well-known key in their own DNS and borrow its face.
+    operatorName:
+      r.operator && r.operator_confirmed === 1 ? r.operator_name : null,
     operatorAvatar:
-      r.operator && r.operator_avatar === 1 ? `/avatars/${r.operator}` : null,
+      r.operator && r.operator_confirmed === 1 && r.operator_avatar === 1
+        ? `/avatars/${r.operator}`
+        : null,
     signup:
       r.signup_mode === 'open' || r.signup_mode === 'token'
         ? r.signup_mode

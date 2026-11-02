@@ -11,8 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as ApiConfirmRouteImport } from './routes/api/confirm'
 import { Route as AvatarsPubkeyRouteImport } from './routes/avatars.$pubkey'
 import { Route as HsPubkeyRouteImport } from './routes/hs.$pubkey'
+import { Route as ApiConfirmIdRouteImport } from './routes/api/confirm.$id'
 import { Route as ApiV1HomeserversRouteImport } from './routes/api/v1/homeservers'
 import { Route as ApiV1StatsRouteImport } from './routes/api/v1/stats'
 import { Route as ApiV1HomeserversPubkeyRouteImport } from './routes/api/v1/homeservers.$pubkey'
@@ -27,6 +29,11 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiConfirmRoute = ApiConfirmRouteImport.update({
+  id: '/api/confirm',
+  path: '/api/confirm',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AvatarsPubkeyRoute = AvatarsPubkeyRouteImport.update({
   id: '/avatars/$pubkey',
   path: '/avatars/$pubkey',
@@ -36,6 +43,11 @@ const HsPubkeyRoute = HsPubkeyRouteImport.update({
   id: '/hs/$pubkey',
   path: '/hs/$pubkey',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ApiConfirmIdRoute = ApiConfirmIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiConfirmRoute,
 } as any)
 const ApiV1HomeserversRoute = ApiV1HomeserversRouteImport.update({
   id: '/api/v1/homeservers',
@@ -56,8 +68,10 @@ const ApiV1HomeserversPubkeyRoute = ApiV1HomeserversPubkeyRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/api/confirm': typeof ApiConfirmRouteWithChildren
   '/avatars/$pubkey': typeof AvatarsPubkeyRoute
   '/hs/$pubkey': typeof HsPubkeyRoute
+  '/api/confirm/$id': typeof ApiConfirmIdRoute
   '/api/v1/homeservers': typeof ApiV1HomeserversRouteWithChildren
   '/api/v1/stats': typeof ApiV1StatsRoute
   '/api/v1/homeservers/$pubkey': typeof ApiV1HomeserversPubkeyRoute
@@ -65,8 +79,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/api/confirm': typeof ApiConfirmRouteWithChildren
   '/avatars/$pubkey': typeof AvatarsPubkeyRoute
   '/hs/$pubkey': typeof HsPubkeyRoute
+  '/api/confirm/$id': typeof ApiConfirmIdRoute
   '/api/v1/homeservers': typeof ApiV1HomeserversRouteWithChildren
   '/api/v1/stats': typeof ApiV1StatsRoute
   '/api/v1/homeservers/$pubkey': typeof ApiV1HomeserversPubkeyRoute
@@ -75,8 +91,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/api/confirm': typeof ApiConfirmRouteWithChildren
   '/avatars/$pubkey': typeof AvatarsPubkeyRoute
   '/hs/$pubkey': typeof HsPubkeyRoute
+  '/api/confirm/$id': typeof ApiConfirmIdRoute
   '/api/v1/homeservers': typeof ApiV1HomeserversRouteWithChildren
   '/api/v1/stats': typeof ApiV1StatsRoute
   '/api/v1/homeservers/$pubkey': typeof ApiV1HomeserversPubkeyRoute
@@ -86,8 +104,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/api/confirm'
     | '/avatars/$pubkey'
     | '/hs/$pubkey'
+    | '/api/confirm/$id'
     | '/api/v1/homeservers'
     | '/api/v1/stats'
     | '/api/v1/homeservers/$pubkey'
@@ -95,8 +115,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
+    | '/api/confirm'
     | '/avatars/$pubkey'
     | '/hs/$pubkey'
+    | '/api/confirm/$id'
     | '/api/v1/homeservers'
     | '/api/v1/stats'
     | '/api/v1/homeservers/$pubkey'
@@ -104,8 +126,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
+    | '/api/confirm'
     | '/avatars/$pubkey'
     | '/hs/$pubkey'
+    | '/api/confirm/$id'
     | '/api/v1/homeservers'
     | '/api/v1/stats'
     | '/api/v1/homeservers/$pubkey'
@@ -114,6 +138,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  ApiConfirmRoute: typeof ApiConfirmRouteWithChildren
   AvatarsPubkeyRoute: typeof AvatarsPubkeyRoute
   HsPubkeyRoute: typeof HsPubkeyRoute
   ApiV1HomeserversRoute: typeof ApiV1HomeserversRouteWithChildren
@@ -136,6 +161,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/confirm': {
+      id: '/api/confirm'
+      path: '/api/confirm'
+      fullPath: '/api/confirm'
+      preLoaderRoute: typeof ApiConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/avatars/$pubkey': {
       id: '/avatars/$pubkey'
       path: '/avatars/$pubkey'
@@ -149,6 +181,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/hs/$pubkey'
       preLoaderRoute: typeof HsPubkeyRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/confirm/$id': {
+      id: '/api/confirm/$id'
+      path: '/$id'
+      fullPath: '/api/confirm/$id'
+      preLoaderRoute: typeof ApiConfirmIdRouteImport
+      parentRoute: typeof ApiConfirmRoute
     }
     '/api/v1/homeservers': {
       id: '/api/v1/homeservers'
@@ -174,6 +213,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ApiConfirmRouteChildren {
+  ApiConfirmIdRoute: typeof ApiConfirmIdRoute
+}
+
+const ApiConfirmRouteChildren: ApiConfirmRouteChildren = {
+  ApiConfirmIdRoute: ApiConfirmIdRoute,
+}
+
+const ApiConfirmRouteWithChildren = ApiConfirmRoute._addFileChildren(
+  ApiConfirmRouteChildren,
+)
+
 interface ApiV1HomeserversRouteChildren {
   ApiV1HomeserversPubkeyRoute: typeof ApiV1HomeserversPubkeyRoute
 }
@@ -188,6 +239,7 @@ const ApiV1HomeserversRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  ApiConfirmRoute: ApiConfirmRouteWithChildren,
   AvatarsPubkeyRoute: AvatarsPubkeyRoute,
   HsPubkeyRoute: HsPubkeyRoute,
   ApiV1HomeserversRoute: ApiV1HomeserversRouteWithChildren,

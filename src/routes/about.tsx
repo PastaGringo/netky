@@ -124,6 +124,12 @@ function About() {
       </p>
       <Code>{'pubky://<your pubky key>/pub/netky/operates.txt'}</Code>
       <p>
+        The easy way: open your server&apos;s page on Netky and press{' '}
+        <strong>I run this server</strong>. Netky asks Pubky Ring for one
+        folder, <code>/pub/netky/</code>, writes that file for you and signs
+        out. Your name and avatar show on the server once it is confirmed.
+      </p>
+      <p>
         A <code>{'_netky TXT "operates=<homeserver key>"'}</code> in your own
         PKARR record works too. Until then, the server shows as claimed with the
         operator &quot;not confirmed&quot;.

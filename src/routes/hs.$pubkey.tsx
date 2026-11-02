@@ -14,6 +14,7 @@ import {
 } from '#/components/ui'
 import { getHomeserverDetail } from '#/server/fns'
 import type { Probe } from '#/server/queries'
+import { ConfirmOperator } from '#/components/confirm-operator'
 import { NotFound } from './__root'
 
 export const Route = createFileRoute('/hs/$pubkey')({
@@ -166,17 +167,19 @@ function Detail() {
           <Item label="operator">
             {h.operator ? (
               <>
-                <a
-                  href={`https://pubky.app/profile/${h.operator}`}
-                  className="inline-flex items-center gap-2 text-text hover:text-red"
-                >
-                  <Avatar
-                    src={h.operatorAvatar}
-                    name={h.operatorName}
-                    size={28}
-                  />
-                  <span>{h.operatorName ?? shortKey(h.operator)}</span>
-                </a>
+                {h.operatorConfirmed ? (
+                  <a
+                    href={`https://pubky.app/profile/${h.operator}`}
+                    className="inline-flex items-center gap-2 text-text hover:text-red"
+                  >
+                    <Avatar
+                      src={h.operatorAvatar}
+                      name={h.operatorName}
+                      size={28}
+                    />
+                    <span>{h.operatorName ?? shortKey(h.operator)}</span>
+                  </a>
+                ) : null}
                 <span className="block break-all text-xs text-dim">
                   pubky{h.operator}
                 </span>
@@ -213,6 +216,9 @@ function Detail() {
             <Item label="record error">{h.resolveError}</Item>
           ) : null}
         </dl>
+        {h.claimVerified && h.operator && !h.operatorConfirmed ? (
+          <ConfirmOperator homeserver={h.pubkey} />
+        ) : null}
         <p className="mt-2 mb-0 text-xs text-dim">
           Raw data:{' '}
           <a
