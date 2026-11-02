@@ -54,3 +54,6 @@ pnpm dev      # http://localhost:3000
 ```
 
 Requires Node 24+.
+
+The world map in `src/lib/world-map.ts` is generated once from Natural Earth
+data with `node scripts/build-map.mjs`; no map library ships to the browser.

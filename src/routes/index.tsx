@@ -12,6 +12,8 @@ import {
 } from '#/components/ui'
 import { getOverview } from '#/server/fns'
 import type { Homeserver, Status } from '#/server/queries'
+import { WorldMap } from '#/components/world-map'
+import type { CountryPoint } from '#/components/world-map'
 
 export const Route = createFileRoute('/')({
   loader: () => getOverview(),
@@ -39,6 +41,14 @@ function Home() {
   const { homeservers, stats, now } = Route.useLoaderData()
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
+  const countries = useMemo(() => groupByCountry(homeservers), [homeservers])
+  const pickCountry = (name: string) => {
+    setFilter('all')
+    setQuery(name)
+    document
+      .getElementById('list-title')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -124,12 +134,13 @@ function Home() {
             most of it still runs in one place.
           </p>
         ) : null}
+        <div className="mt-3 border bg-panel/90 p-3 sm:p-5">
+          <WorldMap points={countries.points} onPick={pickCountry} />
+        </div>
         <Countries
-          homeservers={homeservers}
-          onPick={(name) => {
-            setFilter('all')
-            setQuery(name)
-          }}
+          points={countries.points}
+          cdn={countries.cdn}
+          onPick={pickCountry}
         />
         <p className="mt-2 mb-0 text-xs text-dim">
           last check {ago(stats.lastProbeAt, now)} · users last listed{' '}
@@ -267,28 +278,19 @@ function Row({ h }: { h: Homeserver }) {
   )
 }
 
-function Countries({
-  homeservers,
-  onPick,
-}: {
-  homeservers: Array<Homeserver>
-  onPick: (name: string) => void
-}) {
-  const live = homeservers.filter(
-    (h) => h.status === 'up' || h.status === 'down',
-  )
-  const byCountry = new Map<
-    string,
-    { name: string; servers: number; users: number }
-  >()
+/** Live homeservers grouped by country; CDN-fronted ones are counted apart. */
+function groupByCountry(homeservers: Array<Homeserver>) {
+  const byCountry = new Map<string, CountryPoint>()
   let cdn = 0
-  for (const h of live) {
+  for (const h of homeservers) {
+    if (h.status !== 'up' && h.status !== 'down') continue
     if (h.cdn) {
       cdn++
       continue
     }
     if (!h.country) continue
     const c = byCountry.get(h.country) ?? {
+      code: h.country,
       name: h.countryName ?? h.country,
       servers: 0,
       users: 0,
@@ -297,9 +299,22 @@ function Countries({
     c.users += h.users
     byCountry.set(h.country, c)
   }
-  const list = [...byCountry.entries()].sort(
-    (a, b) => b[1].servers - a[1].servers || b[1].users - a[1].users,
+  const points = [...byCountry.values()].sort(
+    (a, b) => b.servers - a.servers || b.users - a.users,
   )
+  return { points, cdn }
+}
+
+function Countries({
+  points,
+  cdn,
+  onPick,
+}: {
+  points: Array<CountryPoint>
+  cdn: number
+  onPick: (name: string) => void
+}) {
+  const list = points.map((c) => [c.code, c] as const)
   if (!list.length) return null
   return (
     <ul

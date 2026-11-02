@@ -38,14 +38,20 @@
   },
   "devDependencies": {
     "@tanstack/eslint-config": "0.4.0",
+    "@types/d3-geo": "3.1.0",
     "@types/dns-packet": "5.6.5",
     "@types/node": "24.19.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "@types/topojson-client": "3.1.5",
     "@vitejs/plugin-react": "6.1.2",
+    "d3-geo": "3.1.1",
     "eslint": "9.39.5",
+    "i18n-iso-countries": "7.14.0",
     "prettier": "3.9.10",
+    "topojson-client": "3.1.0",
     "typescript": "6.0.3",
-    "vite": "8.3.5"
+    "vite": "8.3.5",
+    "world-atlas": "2.0.2"
   }
 }
