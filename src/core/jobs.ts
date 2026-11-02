@@ -1,6 +1,6 @@
-import { getDb, setMeta, transaction } from './db.ts'
+import { DATA_DIR, getDb, setMeta, transaction } from './db.ts'
 import { lookupIp } from './geo.ts'
-import { listNexusUsers } from './nexus.ts'
+import { fetchProfile, listNexusUsers } from './nexus.ts'
 import {
   type SignedPacket,
   PkarrNotFound,
@@ -127,7 +127,8 @@ export async function resolveHomeservers(onlyPubkey?: string) {
   const update = db.prepare(`
     UPDATE homeservers SET resolved_at = ?, record_ts = ?, resolve_error = NULL, domain = ?, domain_port = ?,
       pubky_port = ?, ipv4 = ?, ipv6 = ?, country = ?, country_name = ?, asn = ?, as_org = ?,
-      geo_ip = ?, operator = ?, claim_verified = ?, claim_method = ?, operator_confirmed = ?
+      geo_ip = ?, operator = ?, claim_verified = ?, claim_method = ?, operator_confirmed = ?,
+      operator_name = ?, operator_avatar = ?
     WHERE pubkey = ?`)
   await mapLimit(rows, 4, async ({ pubkey }) => {
     try {
@@ -156,6 +157,8 @@ export async function resolveHomeservers(onlyPubkey?: string) {
         claim.verified ? 1 : 0,
         claim.method,
         claim.confirmed ? 1 : 0,
+        claim.profile?.name ?? null,
+        claim.profile?.avatar ? 1 : 0,
         pubkey,
       )
     } catch (e) {
@@ -170,6 +173,8 @@ export async function resolveHomeservers(onlyPubkey?: string) {
 }
 
 /** The operator must confirm with an `operates=<homeserver>` TXT in their own record. */
+export const avatarPath = (pubkey: string) => `${DATA_DIR}/avatars/${pubkey}`
+
 const KEY_IN_TXT =
   /^operator=(?:pubky)?([ybndrfg8ejkmcpqxot1uwisza345h769]{52})$/i
 const USER_AGENT = 'netky/0.1 (+https://netky.pubky.pastalabs.dev/about)'
@@ -196,13 +201,18 @@ async function checkClaim(
     if (operator) method = 'dns'
   }
   if (!operator)
-    return { operator: null, verified: false, method: null, confirmed: false }
-  return {
-    operator,
-    verified: true,
-    method,
-    confirmed: await operatorConfirms(operator, homeserver),
-  }
+    return {
+      operator: null,
+      verified: false,
+      method: null,
+      confirmed: false,
+      profile: null,
+    }
+  const [confirmed, profile] = await Promise.all([
+    operatorConfirms(operator, homeserver),
+    fetchProfile(operator, avatarPath(operator)),
+  ])
+  return { operator, verified: true, method, confirmed, profile }
 }
 
 async function dnsOperator(domain: string): Promise<string | null> {

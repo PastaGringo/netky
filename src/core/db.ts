@@ -104,6 +104,11 @@ const MIGRATIONS: Array<string> = [
   ALTER TABLE homeservers ADD COLUMN claim_method TEXT;
   ALTER TABLE homeservers ADD COLUMN operator_confirmed INTEGER NOT NULL DEFAULT 0;
   `,
+  // Operator display: name from Nexus, avatar cached under DATA_DIR/avatars.
+  `
+  ALTER TABLE homeservers ADD COLUMN operator_name TEXT;
+  ALTER TABLE homeservers ADD COLUMN operator_avatar INTEGER NOT NULL DEFAULT 0;
+  `,
 ]
 
 function migrate(d: DatabaseSync) {

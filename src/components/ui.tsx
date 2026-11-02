@@ -124,3 +124,37 @@ export function Stat({
     </div>
   )
 }
+
+/** Avatar of a claimed homeserver's operator, with a fallback initial. */
+export function Avatar({
+  src,
+  name,
+  size = 18,
+}: {
+  src: string | null
+  name: string | null
+  size?: number
+}) {
+  const style = { width: size, height: size }
+  if (src)
+    return (
+      <img
+        src={src}
+        alt=""
+        width={size}
+        height={size}
+        loading="lazy"
+        className="inline-block shrink-0 rounded-full border border-cyan/60 object-cover"
+        style={style}
+      />
+    )
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-flex shrink-0 items-center justify-center rounded-full border border-cyan/60 text-[0.6rem] text-cyan"
+      style={style}
+    >
+      {(name ?? '?').trim().charAt(0).toUpperCase() || '?'}
+    </span>
+  )
+}

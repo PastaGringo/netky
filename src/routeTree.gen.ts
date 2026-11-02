@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as AvatarsPubkeyRouteImport } from './routes/avatars.$pubkey'
 import { Route as HsPubkeyRouteImport } from './routes/hs.$pubkey'
 import { Route as ApiV1HomeserversRouteImport } from './routes/api/v1/homeservers'
 import { Route as ApiV1StatsRouteImport } from './routes/api/v1/stats'
@@ -24,6 +25,11 @@ const IndexRoute = IndexRouteImport.update({
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AvatarsPubkeyRoute = AvatarsPubkeyRouteImport.update({
+  id: '/avatars/$pubkey',
+  path: '/avatars/$pubkey',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HsPubkeyRoute = HsPubkeyRouteImport.update({
@@ -50,6 +56,7 @@ const ApiV1HomeserversPubkeyRoute = ApiV1HomeserversPubkeyRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/avatars/$pubkey': typeof AvatarsPubkeyRoute
   '/hs/$pubkey': typeof HsPubkeyRoute
   '/api/v1/homeservers': typeof ApiV1HomeserversRouteWithChildren
   '/api/v1/stats': typeof ApiV1StatsRoute
@@ -58,6 +65,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/avatars/$pubkey': typeof AvatarsPubkeyRoute
   '/hs/$pubkey': typeof HsPubkeyRoute
   '/api/v1/homeservers': typeof ApiV1HomeserversRouteWithChildren
   '/api/v1/stats': typeof ApiV1StatsRoute
@@ -67,6 +75,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/avatars/$pubkey': typeof AvatarsPubkeyRoute
   '/hs/$pubkey': typeof HsPubkeyRoute
   '/api/v1/homeservers': typeof ApiV1HomeserversRouteWithChildren
   '/api/v1/stats': typeof ApiV1StatsRoute
@@ -77,6 +86,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/avatars/$pubkey'
     | '/hs/$pubkey'
     | '/api/v1/homeservers'
     | '/api/v1/stats'
@@ -85,6 +95,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
+    | '/avatars/$pubkey'
     | '/hs/$pubkey'
     | '/api/v1/homeservers'
     | '/api/v1/stats'
@@ -93,6 +104,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
+    | '/avatars/$pubkey'
     | '/hs/$pubkey'
     | '/api/v1/homeservers'
     | '/api/v1/stats'
@@ -102,6 +114,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  AvatarsPubkeyRoute: typeof AvatarsPubkeyRoute
   HsPubkeyRoute: typeof HsPubkeyRoute
   ApiV1HomeserversRoute: typeof ApiV1HomeserversRouteWithChildren
   ApiV1StatsRoute: typeof ApiV1StatsRoute
@@ -121,6 +134,13 @@ declare module '@tanstack/react-router' {
       path: '/about'
       fullPath: '/about'
       preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/avatars/$pubkey': {
+      id: '/avatars/$pubkey'
+      path: '/avatars/$pubkey'
+      fullPath: '/avatars/$pubkey'
+      preLoaderRoute: typeof AvatarsPubkeyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/hs/$pubkey': {
@@ -168,6 +188,7 @@ const ApiV1HomeserversRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  AvatarsPubkeyRoute: AvatarsPubkeyRoute,
   HsPubkeyRoute: HsPubkeyRoute,
   ApiV1HomeserversRoute: ApiV1HomeserversRouteWithChildren,
   ApiV1StatsRoute: ApiV1StatsRoute,

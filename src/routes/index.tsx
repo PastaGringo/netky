@@ -7,6 +7,7 @@ import {
   StatusBadge,
   Uptime,
   ago,
+  Avatar,
   Flag,
   shortKey,
 } from '#/components/ui'
@@ -236,7 +237,15 @@ function Row({ h }: { h: Homeserver }) {
           <span className="block truncate text-xs text-dim">
             {h.domain ? shortKey(h.pubkey) : 'no ICANN domain'}
             {h.claimVerified ? (
-              <span className="text-cyan"> · claimed</span>
+              <span className="text-cyan">
+                {' · run by '}
+                <Avatar
+                  src={h.operatorAvatar}
+                  name={h.operatorName}
+                  size={16}
+                />{' '}
+                {h.operatorName ?? shortKey(h.operator ?? '')}
+              </span>
             ) : null}
             {h.status === 'up' && h.signup === 'open' ? (
               <span className="text-green"> · open signups</span>

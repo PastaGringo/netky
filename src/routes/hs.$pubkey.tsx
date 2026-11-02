@@ -6,6 +6,7 @@ import {
   StatusBadge,
   Uptime,
   ago,
+  Avatar,
   Flag,
   SignupBadge,
   fmtDate,
@@ -165,7 +166,20 @@ function Detail() {
           <Item label="operator">
             {h.operator ? (
               <>
-                <span className="break-all">pubky{h.operator}</span>
+                <a
+                  href={`https://pubky.app/profile/${h.operator}`}
+                  className="inline-flex items-center gap-2 text-text hover:text-red"
+                >
+                  <Avatar
+                    src={h.operatorAvatar}
+                    name={h.operatorName}
+                    size={28}
+                  />
+                  <span>{h.operatorName ?? shortKey(h.operator)}</span>
+                </a>
+                <span className="block break-all text-xs text-dim">
+                  pubky{h.operator}
+                </span>
                 <span className="block text-xs text-dim">
                   named{' '}
                   {h.claimMethod === 'dns'

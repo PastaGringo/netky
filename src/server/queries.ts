@@ -48,6 +48,9 @@ export interface Homeserver {
   claimMethod: 'dns' | 'pkarr' | null
   /** The operator confirmed from their own record or homeserver. */
   operatorConfirmed: boolean
+  operatorName: string | null
+  /** Local URL of the operator's avatar, if one is cached. */
+  operatorAvatar: string | null
   /** 'open': anyone can sign up; 'token': invite only; null: unknown. */
   signup: 'open' | 'token' | null
   server: string | null
@@ -82,6 +85,8 @@ interface Row {
   claim_verified: number
   claim_method: string | null
   operator_confirmed: number
+  operator_name: string | null
+  operator_avatar: number
   signup_mode: string | null
 }
 
@@ -160,6 +165,9 @@ function toHomeserver(
         ? r.claim_method
         : null,
     operatorConfirmed: r.operator_confirmed === 1,
+    operatorName: r.operator ? r.operator_name : null,
+    operatorAvatar:
+      r.operator && r.operator_avatar === 1 ? `/avatars/${r.operator}` : null,
     signup:
       r.signup_mode === 'open' || r.signup_mode === 'token'
         ? r.signup_mode
