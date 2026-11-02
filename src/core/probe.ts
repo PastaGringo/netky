@@ -141,6 +141,36 @@ export function checkTls(
   })
 }
 
+export type SignupMode = 'open' | 'token'
+
+/**
+ * Reads the signup mode without signing up: GET /signup_tokens/<token> answers
+ * "Signup tokens not required" on open homeservers, and checks the token
+ * otherwise. Returns null when the server does not expose this route.
+ */
+export async function checkSignup(
+  domain: string,
+  port: number | null,
+  timeoutMs = 10_000,
+): Promise<SignupMode | null> {
+  const url = `https://${domain}${port && port !== 443 ? `:${port}` : ''}/signup_tokens/netky-probe`
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'user-agent': 'netky/0.1 (+https://netky.pubky.pastalabs.dev/about)',
+      },
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+    const body = (await res.text()).slice(0, 500).toLowerCase()
+    if (body.includes('signup tokens not required')) return 'open'
+    if (body.includes('signup token') || body.includes('token not found'))
+      return 'token'
+    return null
+  } catch {
+    return null
+  }
+}
+
 export function errorMessage(e: unknown): string {
   if (e instanceof Error) {
     const cause = (e as { cause?: { code?: string; message?: string } }).cause

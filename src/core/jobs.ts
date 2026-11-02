@@ -8,7 +8,13 @@ import {
   keyField,
   resolvePacket,
 } from './pkarr.ts'
-import { checkTls, errorMessage, probeHttp, probeTcp } from './probe.ts'
+import {
+  checkSignup,
+  checkTls,
+  errorMessage,
+  probeHttp,
+  probeTcp,
+} from './probe.ts'
 
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
@@ -289,6 +295,30 @@ export async function probeAll(onlyPubkey?: string) {
     if (r.ok) up++
   })
   if (!onlyPubkey) log(`probe: ${up}/${rows.length} up`)
+}
+
+/** Signup mode of every homeserver with a domain. Unknown answers keep the last value. */
+export async function checkAllSignups() {
+  const db = getDb()
+  const rows = db
+    .prepare(
+      'SELECT pubkey, domain, domain_port FROM homeservers WHERE domain IS NOT NULL AND (is_pubky IS NULL OR is_pubky = 1)',
+    )
+    .all() as Array<{
+    pubkey: string
+    domain: string
+    domain_port: number | null
+  }>
+  const update = db.prepare(
+    'UPDATE homeservers SET signup_mode = COALESCE(?, signup_mode), signup_checked_at = ? WHERE pubkey = ?',
+  )
+  let open = 0
+  await mapLimit(rows, 4, async (hs) => {
+    const mode = await checkSignup(hs.domain, hs.domain_port)
+    if (mode === 'open') open++
+    update.run(mode, Date.now(), hs.pubkey)
+  })
+  log(`signups: ${rows.length} checked, ${open} open`)
 }
 
 export async function checkAllTls() {

@@ -76,7 +76,12 @@ function About() {
         <li>
           a plain TCP connect for servers that only publish a Pubky TLS port;
         </li>
-        <li>one TLS handshake every six hours to read the certificate.</li>
+        <li>one TLS handshake every six hours to read the certificate;</li>
+        <li>
+          one request to <code>/signup_tokens/…</code> every six hours with a
+          dummy token, to learn whether signups are open or invite only. Nothing
+          is ever signed up.
+        </li>
       </ul>
       <p>
         No port scan, no load test, no attempt to log in. Requests carry the

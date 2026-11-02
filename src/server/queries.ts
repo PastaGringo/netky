@@ -44,6 +44,8 @@ export interface Homeserver {
   } | null
   operator: string | null
   claimVerified: boolean
+  /** 'open': anyone can sign up; 'token': invite only; null: unknown. */
+  signup: 'open' | 'token' | null
   server: string | null
   resolveError: string | null
 }
@@ -74,6 +76,7 @@ interface Row {
   tls_error: string | null
   operator: string | null
   claim_verified: number
+  signup_mode: string | null
 }
 
 function uptimes(pubkey?: string) {
@@ -146,6 +149,10 @@ function toHomeserver(
           },
     operator: r.operator,
     claimVerified: r.claim_verified === 1,
+    signup:
+      r.signup_mode === 'open' || r.signup_mode === 'token'
+        ? r.signup_mode
+        : null,
     server: r.server_header,
     resolveError: r.resolve_error,
   }
@@ -211,6 +218,7 @@ export interface NetworkStats {
   homeservers: number
   up: number
   claimed: number
+  openSignups: number
   usersKnown: number
   usersResolved: number
   countries: number
@@ -253,6 +261,8 @@ export function networkStats(list = listHomeservers()): NetworkStats {
     homeservers: real.length,
     up: real.filter((h) => h.status === 'up').length,
     claimed: real.filter((h) => h.claimVerified).length,
+    openSignups: real.filter((h) => h.status === 'up' && h.signup === 'open')
+      .length,
     usersKnown: u.known,
     usersResolved: resolved,
     countries: new Set(real.map((h) => h.country).filter(Boolean)).size,

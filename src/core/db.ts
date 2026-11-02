@@ -93,6 +93,11 @@ const MIGRATIONS: Array<string> = [
   ALTER TABLE homeservers ADD COLUMN claim_verified INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE homeservers ADD COLUMN geo_ip TEXT;
   `,
+  // Signup mode: 'open' | 'token' (invite only), read from a public endpoint.
+  `
+  ALTER TABLE homeservers ADD COLUMN signup_mode TEXT;
+  ALTER TABLE homeservers ADD COLUMN signup_checked_at INTEGER;
+  `,
 ]
 
 function migrate(d: DatabaseSync) {

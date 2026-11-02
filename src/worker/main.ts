@@ -4,6 +4,7 @@ import { Cron } from 'croner'
 import { getDb, getMeta } from '../core/db.ts'
 import { geoDatabasesPresent, refreshGeoDatabases } from '../core/geo.ts'
 import {
+  checkAllSignups,
   checkAllTls,
   dailySnapshot,
   discoverUsers,
@@ -31,6 +32,7 @@ job('resolve-users', '*/10 * * * *', () => resolveUsers())
 job('resolve-homeservers', '25,55 * * * *', () => resolveHomeservers())
 job('probe', '*/5 * * * *', () => probeAll())
 job('tls', '41 */6 * * *', checkAllTls)
+job('signups', '47 */6 * * *', checkAllSignups)
 job('snapshot', '50 23 * * *', dailySnapshot)
 job('geo', '0 5 3 * *', refreshGeoDatabases)
 
@@ -53,6 +55,7 @@ async function bootstrap() {
   await resolveHomeservers()
   await probeAll()
   await checkAllTls()
+  await checkAllSignups()
   dailySnapshot()
   log('bootstrap done')
 }

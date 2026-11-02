@@ -38,6 +38,25 @@ export function StatusBadge({ status }: { status: Status }) {
   )
 }
 
+export function SignupBadge({ mode }: { mode: 'open' | 'token' | null }) {
+  if (!mode) return null
+  return mode === 'open' ? (
+    <span
+      className="inline-block border border-green px-1.5 text-xs leading-5 font-semibold whitespace-nowrap text-green"
+      title="Anyone can create an account here"
+    >
+      OPEN SIGNUPS
+    </span>
+  ) : (
+    <span
+      className="inline-block border border-line px-1.5 text-xs leading-5 font-semibold whitespace-nowrap text-dim"
+      title="Accounts need a signup token from the operator"
+    >
+      INVITE ONLY
+    </span>
+  )
+}
+
 export function shortKey(key: string) {
   return `${key.slice(0, 6)}…${key.slice(-4)}`
 }

@@ -7,6 +7,7 @@ import {
   Uptime,
   ago,
   Flag,
+  SignupBadge,
   fmtDate,
   shortKey,
 } from '#/components/ui'
@@ -51,6 +52,7 @@ function Detail() {
       </Link>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <StatusBadge status={h.status} />
+        <SignupBadge mode={h.signup} />
         {h.claimVerified ? (
           <span className="border border-cyan px-1.5 text-xs leading-5 text-cyan">
             CLAIMED
@@ -151,6 +153,13 @@ function Detail() {
           </Item>
           <Item label="network">
             {h.asn ? `AS${h.asn} · ${h.asOrg ?? 'unknown'}` : '—'}
+          </Item>
+          <Item label="signups">
+            {h.signup === 'open'
+              ? 'open: anyone can create an account'
+              : h.signup === 'token'
+                ? 'invite only: a signup token from the operator is needed'
+                : 'unknown'}
           </Item>
           <Item label="server header">{h.server ?? '—'}</Item>
           <Item label="operator">

@@ -18,16 +18,18 @@ export const Route = createFileRoute('/')({
   component: Home,
 })
 
-type Filter = 'all' | 'up' | 'down' | 'other'
+type Filter = 'all' | 'up' | 'down' | 'open' | 'other'
 const FILTERS: Array<[Filter, string]> = [
   ['all', 'all'],
   ['up', 'up'],
   ['down', 'down'],
+  ['open', 'open signups'],
   ['other', 'not a homeserver'],
 ]
 
 function matches(h: Homeserver, f: Filter) {
   if (f === 'all') return true
+  if (f === 'open') return h.status === 'up' && h.signup === 'open'
   if (f === 'other')
     return h.status === 'not-pubky' || h.status === 'unresolved'
   return h.status === (f as Status)
@@ -74,7 +76,7 @@ function Home() {
         aria-label="Network stats"
         className="mx-auto w-full max-w-6xl px-4 sm:px-6"
       >
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
           <Stat
             label="homeservers"
             value={stats.homeservers}
@@ -91,18 +93,29 @@ function Home() {
             sub="excluding CDN-fronted servers"
           />
           <Stat
-            label="claimed"
-            value={`${stats.claimed}/${stats.homeservers}`}
+            label="open signups"
+            value={stats.openSignups}
             sub={
-              <Link
-                to="/about"
-                hash="claim"
-                className="underline hover:text-red"
-              >
-                claim yours
-              </Link>
+              stats.openSignups
+                ? 'anyone can join'
+                : 'all invite only, ask an operator'
             }
           />
+          <div className="col-span-2 grid md:col-span-1">
+            <Stat
+              label="claimed"
+              value={`${stats.claimed}/${stats.homeservers}`}
+              sub={
+                <Link
+                  to="/about"
+                  hash="claim"
+                  className="underline hover:text-red"
+                >
+                  claim yours
+                </Link>
+              }
+            />
+          </div>
         </div>
         {stats.topShare != null && stats.topShare >= 50 ? (
           <p className="mt-3 mb-0 border border-amber/60 bg-panel/90 px-4 py-2 text-sm text-pretty">
@@ -213,6 +226,11 @@ function Row({ h }: { h: Homeserver }) {
             {h.domain ? shortKey(h.pubkey) : 'no ICANN domain'}
             {h.claimVerified ? (
               <span className="text-cyan"> · claimed</span>
+            ) : null}
+            {h.status === 'up' && h.signup === 'open' ? (
+              <span className="text-green"> · open signups</span>
+            ) : h.status === 'up' && h.signup === 'token' ? (
+              <span> · invite only</span>
             ) : null}
           </span>
         </span>

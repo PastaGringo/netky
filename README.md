@@ -15,7 +15,9 @@ Live at <https://netky.pubky.pastalabs.dev>.
    addresses. Country and network come from DB-IP's free databases, read
    locally.
 3. **Checks.** Passive only: one HTTPS request on `/` every five minutes, a
-   TCP connect for servers with no domain, and a TLS handshake every six hours.
+   TCP connect for servers with no domain, a TLS handshake every six hours,
+   and a GET on `/signup_tokens/<dummy>` to tell open signups from invite-only
+   ones (nothing is ever signed up).
    No port scan, no load test.
 
 A homeserver that no user known to Nexus points to stays invisible.
