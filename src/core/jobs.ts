@@ -139,7 +139,12 @@ export async function resolveHomeservers(onlyPubkey?: string) {
       const hint = [...ep.ipv4, ...ep.ipv6].find(isPublicIp) ?? null
       const ip = (ep.domain ? await resolveDomainIp(ep.domain) : null) ?? hint
       const geo = ip ? await lookupIp(ip) : null
-      const claim = await checkClaim(pubkey, packet, ep.domain)
+      const previous = db
+        .prepare(
+          'SELECT operator, claim_verified, claim_method, operator_confirmed, operator_name, operator_avatar FROM homeservers WHERE pubkey = ?',
+        )
+        .get(pubkey) as PreviousClaim | undefined
+      const claim = await checkClaim(pubkey, packet, ep.domain, previous)
       update.run(
         Date.now(),
         Number(packet.timestampUs / 1000n),
@@ -188,16 +193,42 @@ const USER_AGENT = 'netky/0.1 (+https://netky.pubky.pastalabs.dev/about)'
  * The operator then confirms from their own space: a TXT "operates=<server>"
  * in their record, or /pub/netky/operates.txt on their homeserver.
  */
+interface PreviousClaim {
+  operator: string | null
+  claim_verified: number
+  claim_method: string | null
+  operator_confirmed: number
+  operator_name: string | null
+  operator_avatar: number
+}
+
+/**
+ * A lookup that fails for a reason other than "no such record" keeps what we
+ * knew: a DNS or network hiccup must not erase a claim or a confirmation.
+ */
 async function checkClaim(
   homeserver: string,
   packet: SignedPacket,
   domain: string | null,
+  previous: PreviousClaim | undefined,
 ) {
+  const kept = {
+    operator: previous?.operator ?? null,
+    verified: previous?.claim_verified === 1,
+    method: (previous?.claim_method ?? null) as 'pkarr' | 'dns' | null,
+    confirmed: previous?.operator_confirmed === 1,
+    profile: {
+      name: previous?.operator_name ?? null,
+      avatar: previous?.operator_avatar === 1,
+    },
+  }
   let operator: string | null =
     keyField(packet, homeserver, 'operator')[0] ?? null
   let method: 'pkarr' | 'dns' | null = operator ? 'pkarr' : null
   if (!operator && domain) {
-    operator = await dnsOperator(domain)
+    const dns = await dnsOperator(domain)
+    if (dns === undefined) return kept
+    operator = dns
     if (operator) method = 'dns'
   }
   if (!operator)
@@ -212,26 +243,42 @@ async function checkClaim(
     operatorConfirms(operator, homeserver),
     fetchProfile(operator, avatarPath(operator)),
   ])
-  return { operator, verified: true, method, confirmed, profile }
+  const same = operator === previous?.operator
+  return {
+    operator,
+    verified: true,
+    method,
+    confirmed: confirmed ?? (same && kept.confirmed),
+    profile: {
+      name: profile.name ?? (same ? kept.profile.name : null),
+      avatar: profile.avatar || (same && kept.profile.avatar),
+    },
+  }
 }
 
-async function dnsOperator(domain: string): Promise<string | null> {
+/** The operator key from _netky.<domain>, null if none, undefined if DNS failed. */
+async function dnsOperator(domain: string): Promise<string | null | undefined> {
   const { resolveTxt } = await import('node:dns/promises')
   try {
     for (const record of await resolveTxt(`_netky.${domain}`)) {
       const m = record.join('').trim().match(KEY_IN_TXT)
       if (m) return m[1].toLowerCase()
     }
-  } catch {
-    // No record (ENODATA / ENOTFOUND): not claimed.
+    return null
+  } catch (e) {
+    const code = (e as { code?: string }).code
+    if (code === 'ENODATA' || code === 'ENOTFOUND') return null
+    log(
+      `dns: _netky.${domain} lookup failed (${code ?? errorMessage(e)}), keeping the last claim`,
+    )
+    return undefined
   }
-  return null
 }
 
 async function operatorConfirms(
   operator: string,
   homeserver: string,
-): Promise<boolean> {
+): Promise<boolean | null> {
   try {
     const packet = await resolvePacket(operator)
     if (keyField(packet, operator, 'operates').includes(homeserver)) return true
@@ -249,14 +296,16 @@ async function operatorConfirms(
         signal: AbortSignal.timeout(10_000),
       },
     )
-    if (!res.ok) return false
+    if (res.status === 404) return false
+    if (!res.ok) return null
     const words = (await res.text())
       .slice(0, 20_000)
       .toLowerCase()
       .split(/[\s,;]+/)
     return words.some((w) => w.replace(/^pubky/, '') === homeserver)
   } catch {
-    return false
+    // Unreachable right now: unknown, not a refusal.
+    return null
   }
 }
 
