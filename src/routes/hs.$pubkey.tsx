@@ -6,7 +6,7 @@ import {
   StatusBadge,
   Uptime,
   ago,
-  flag,
+  Flag,
   fmtDate,
   shortKey,
 } from '#/components/ui'
@@ -139,11 +139,15 @@ function Detail() {
           </Item>
           <Item label="Pubky TLS port">{h.pubkyPort ?? '—'}</Item>
           <Item label="location">
-            {h.cdn
-              ? `hidden behind ${h.cdn}`
-              : h.country
-                ? `${flag(h.country)} ${h.countryName}`
-                : '—'}
+            {h.cdn ? (
+              `hidden behind ${h.cdn}`
+            ) : h.country ? (
+              <span className="inline-flex items-center gap-2">
+                <Flag country={h.country} /> {h.countryName}
+              </span>
+            ) : (
+              '—'
+            )}
           </Item>
           <Item label="network">
             {h.asn ? `AS${h.asn} · ${h.asOrg ?? 'unknown'}` : '—'}

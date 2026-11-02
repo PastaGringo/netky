@@ -259,13 +259,11 @@ export function networkStats(list = listHomeservers()): NetworkStats {
     topShare: resolved ? Math.round((top / resolved) * 1000) / 10 : null,
     lastProbeAt: Math.max(0, ...list.map((h) => h.lastProbeAt ?? 0)) || null,
     lastDiscoveryAt: meta ? Number(meta.value) : null,
-    history: history
-      .reverse()
-      .map((h) => ({
-        day: h.day,
-        homeservers: h.homeservers,
-        up: h.homeservers_up,
-        users: h.users_resolved,
-      })),
+    history: history.reverse().map((h) => ({
+      day: h.day,
+      homeservers: h.homeservers,
+      up: h.homeservers_up,
+      users: h.users_resolved,
+    })),
   }
 }

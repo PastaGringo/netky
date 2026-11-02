@@ -42,10 +42,21 @@ export function shortKey(key: string) {
   return `${key.slice(0, 6)}…${key.slice(-4)}`
 }
 
-export function flag(country: string | null) {
-  if (!country || country.length !== 2) return ''
-  return String.fromCodePoint(
-    ...[...country.toUpperCase()].map((c) => 0x1f1a5 + c.charCodeAt(0)),
+/** SVG flag (flag-icons): emoji flags do not render on Windows. */
+export function Flag({
+  country,
+  className = '',
+}: {
+  country: string | null
+  className?: string
+}) {
+  if (!country || !/^[a-z]{2}$/i.test(country)) return null
+  return (
+    <span
+      className={`fi fi-${country.toLowerCase()} shrink-0 rounded-[1px] ${className}`}
+      role="img"
+      aria-hidden="true"
+    />
   )
 }
 

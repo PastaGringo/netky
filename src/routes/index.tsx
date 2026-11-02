@@ -7,7 +7,7 @@ import {
   StatusBadge,
   Uptime,
   ago,
-  flag,
+  Flag,
   shortKey,
 } from '#/components/ui'
 import { getOverview } from '#/server/fns'
@@ -111,6 +111,13 @@ function Home() {
             most of it still runs in one place.
           </p>
         ) : null}
+        <Countries
+          homeservers={homeservers}
+          onPick={(name) => {
+            setFilter('all')
+            setQuery(name)
+          }}
+        />
         <p className="mt-2 mb-0 text-xs text-dim">
           last check {ago(stats.lastProbeAt, now)} · users last listed{' '}
           {ago(stats.lastDiscoveryAt, now)}
@@ -228,10 +235,10 @@ function Row({ h }: { h: Homeserver }) {
             {h.cdn ? (
               <>behind {h.cdn}</>
             ) : h.country ? (
-              <>
-                <span aria-hidden="true">{flag(h.country)} </span>
+              <span className="inline-flex items-center gap-2">
+                <Flag country={h.country} />
                 {h.countryName}
-              </>
+              </span>
             ) : (
               '—'
             )}
@@ -239,5 +246,76 @@ function Row({ h }: { h: Homeserver }) {
         </span>
       </Link>
     </li>
+  )
+}
+
+function Countries({
+  homeservers,
+  onPick,
+}: {
+  homeservers: Array<Homeserver>
+  onPick: (name: string) => void
+}) {
+  const live = homeservers.filter(
+    (h) => h.status === 'up' || h.status === 'down',
+  )
+  const byCountry = new Map<
+    string,
+    { name: string; servers: number; users: number }
+  >()
+  let cdn = 0
+  for (const h of live) {
+    if (h.cdn) {
+      cdn++
+      continue
+    }
+    if (!h.country) continue
+    const c = byCountry.get(h.country) ?? {
+      name: h.countryName ?? h.country,
+      servers: 0,
+      users: 0,
+    }
+    c.servers++
+    c.users += h.users
+    byCountry.set(h.country, c)
+  }
+  const list = [...byCountry.entries()].sort(
+    (a, b) => b[1].servers - a[1].servers || b[1].users - a[1].users,
+  )
+  if (!list.length) return null
+  return (
+    <ul
+      aria-label="Homeservers by country"
+      className="m-0 mt-3 flex list-none flex-wrap gap-2 p-0"
+    >
+      {list.map(([code, c]) => (
+        <li key={code}>
+          <button
+            type="button"
+            onClick={() => onPick(c.name)}
+            title={`${c.servers} homeserver${c.servers > 1 ? 's' : ''}, ${c.users} user${c.users > 1 ? 's' : ''}`}
+            className="inline-flex min-h-[44px] items-center gap-2 border bg-panel/90 px-3 text-sm hover:border-red"
+          >
+            <Flag country={code} className="text-lg" />
+            <span>{c.name}</span>
+            <span className="text-dim">{c.servers}</span>
+          </button>
+        </li>
+      ))}
+      {cdn ? (
+        <li>
+          <button
+            type="button"
+            onClick={() => onPick('cloudflare')}
+            title="Behind a CDN: the real location is hidden"
+            className="inline-flex min-h-[44px] items-center gap-2 border bg-panel/90 px-3 text-sm text-dim hover:border-red"
+          >
+            <span aria-hidden="true">☁</span>
+            <span>behind a CDN</span>
+            <span>{cdn}</span>
+          </button>
+        </li>
+      ) : null}
+    </ul>
   )
 }
