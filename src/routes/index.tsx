@@ -13,6 +13,7 @@ import {
 } from '#/components/ui'
 import { getOverview } from '#/server/fns'
 import type { Homeserver, Status } from '#/server/queries'
+import { NextCheck } from '#/components/next-check'
 import { WorldMap } from '#/components/world-map'
 import type { CountryPoint } from '#/components/world-map'
 
@@ -144,7 +145,8 @@ function Home() {
           onPick={pickCountry}
         />
         <p className="mt-2 mb-0 text-xs text-dim">
-          last check {ago(stats.lastProbeAt, now)} · users last listed{' '}
+          last check {ago(stats.lastProbeAt, now)} ·{' '}
+          <NextCheck serverNow={now} /> · users last listed{' '}
           {ago(stats.lastDiscoveryAt, now)}
         </p>
       </section>

@@ -15,6 +15,7 @@ import {
 import { getHomeserverDetail } from '#/server/fns'
 import type { Probe } from '#/server/queries'
 import { ConfirmOperator } from '#/components/confirm-operator'
+import { NextCheck } from '#/components/next-check'
 import { NotFound } from './__root'
 
 export const Route = createFileRoute('/hs/$pubkey')({
@@ -91,7 +92,11 @@ function Detail() {
         <Stat
           label="latency"
           value={<Latency ms={h.latencyMs} />}
-          sub={`checked ${ago(h.lastProbeAt, now)}`}
+          sub={
+            <>
+              checked {ago(h.lastProbeAt, now)} · <NextCheck serverNow={now} />
+            </>
+          }
         />
         <Stat
           label="certificate"
