@@ -5,6 +5,9 @@ import { getDb, getMeta } from '../core/db.ts'
 import { geoDatabasesPresent, refreshGeoDatabases } from '../core/geo.ts'
 import {
   checkAllSignups,
+  checkCapabilities,
+  readTests,
+  syncFeeds,
   checkAllTls,
   dailySnapshot,
   discoverUsers,
@@ -33,6 +36,10 @@ job('resolve-homeservers', '25,55 * * * *', () => resolveHomeservers())
 job('probe', '*/5 * * * *', () => probeAll())
 job('tls', '41 */6 * * *', checkAllTls)
 job('signups', '47 */6 * * *', checkAllSignups)
+job('capabilities', '51 */6 * * *', checkCapabilities)
+// Feeds a minute after the probes, so only servers just seen up are read.
+job('feeds', '1-59/5 * * * *', () => syncFeeds())
+job('read-tests', '33 4 * * *', readTests)
 job('snapshot', '50 23 * * *', dailySnapshot)
 job('geo', '0 5 3 * *', refreshGeoDatabases)
 
@@ -56,6 +63,8 @@ async function bootstrap() {
   await probeAll()
   await checkAllTls()
   await checkAllSignups()
+  await checkCapabilities()
+  await syncFeeds()
   dailySnapshot()
   log('bootstrap done')
 }

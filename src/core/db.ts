@@ -109,6 +109,48 @@ const MIGRATIONS: Array<string> = [
   ALTER TABLE homeservers ADD COLUMN operator_name TEXT;
   ALTER TABLE homeservers ADD COLUMN operator_avatar INTEGER NOT NULL DEFAULT 0;
   `,
+  // Social activity from each homeserver's public /events/ feed, and a few
+  // more passive technical facts.
+  `
+  CREATE TABLE feed_state (
+    homeserver    TEXT PRIMARY KEY,
+    cursor        TEXT NOT NULL DEFAULT '0',
+    backfilled    INTEGER NOT NULL DEFAULT 0,   -- history read to the end
+    live_since    INTEGER,                      -- events after this are dated
+    events_total  INTEGER NOT NULL DEFAULT 0,
+    last_event_at INTEGER,                      -- last new event seen live
+    last_post_at  INTEGER,                      -- newest post ID seen
+    sample_blob   TEXT,                         -- a public file, for the read test
+    checked_at    INTEGER,
+    error         TEXT
+  );
+  CREATE TABLE feed_counts (
+    homeserver TEXT NOT NULL, kind TEXT NOT NULL, op TEXT NOT NULL, count INTEGER NOT NULL,
+    PRIMARY KEY (homeserver, kind, op)
+  );
+  CREATE TABLE feed_hourly (
+    homeserver TEXT NOT NULL, hour INTEGER NOT NULL, kind TEXT NOT NULL, count INTEGER NOT NULL,
+    PRIMARY KEY (homeserver, hour, kind)
+  );
+  CREATE TABLE feed_posts_daily (
+    homeserver TEXT NOT NULL, day TEXT NOT NULL, count INTEGER NOT NULL,
+    PRIMARY KEY (homeserver, day)
+  );
+  CREATE TABLE feed_apps (
+    homeserver TEXT NOT NULL, app TEXT NOT NULL, events INTEGER NOT NULL, last_seen_at INTEGER,
+    PRIMARY KEY (homeserver, app)
+  );
+  CREATE TABLE feed_users (
+    homeserver TEXT NOT NULL, user TEXT NOT NULL, last_seen_at INTEGER NOT NULL,
+    PRIMARY KEY (homeserver, user)
+  );
+  ALTER TABLE homeservers ADD COLUMN features TEXT;            -- JSON, from /info
+  ALTER TABLE homeservers ADD COLUMN pubky_tls_ok INTEGER;     -- native endpoint answers
+  ALTER TABLE homeservers ADD COLUMN security_headers TEXT;    -- JSON array of names
+  ALTER TABLE homeservers ADD COLUMN read_kbps INTEGER;
+  ALTER TABLE homeservers ADD COLUMN read_bytes INTEGER;
+  ALTER TABLE homeservers ADD COLUMN read_at INTEGER;
+  `,
 ]
 
 function migrate(d: DatabaseSync) {

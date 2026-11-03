@@ -20,6 +20,15 @@ Live at <https://netky.pubky.pastalabs.dev>.
    ones (nothing is ever signed up).
    No port scan, no load test.
 
+4. **Activity.** Every five minutes, each live homeserver's public
+   `/events/` feed (the one Nexus indexes) gives the writes per hour, active
+   users, the mix of posts, follows and tags, and the apps writing under
+   `/pub/`. New writes are dated when read; posts are dated from their IDs.
+5. **More passive facts.** `/info` features, whether the native PubkyTLS port
+   answers, security headers, and a daily read-speed test on one public file.
+
+No port scan, no load or rate-limit test, no probing of admin endpoints.
+
 A homeserver that no user known to Nexus points to stays invisible.
 
 ## Claiming a homeserver

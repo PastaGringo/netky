@@ -1,5 +1,6 @@
 import { connect as netConnect } from 'node:net'
 import { connect as tlsConnect } from 'node:tls'
+import { SECURITY_HEADERS } from '../lib/security-headers.ts'
 
 // Passive checks only: one GET on the root, one TCP connect, one TLS
 // handshake. No port scan, no load test, nothing a normal client would not do.
@@ -11,6 +12,8 @@ export interface HttpProbe {
   isPubky: boolean
   server: string | null
   poweredBy: string | null
+  /** Which security-related headers the server sends (names only). */
+  securityHeaders: Array<string> | null
   error: string | null
 }
 
@@ -39,6 +42,7 @@ export async function probeHttp(
       isPubky: /pubky homeserver/i.test(body),
       server: res.headers.get('server'),
       poweredBy: res.headers.get('x-powered-by'),
+      securityHeaders: SECURITY_HEADERS.filter((h) => res.headers.has(h)),
       error: res.status >= 500 ? `HTTP ${res.status}` : null,
     }
   } catch (e) {
@@ -49,6 +53,7 @@ export async function probeHttp(
       isPubky: false,
       server: null,
       poweredBy: null,
+      securityHeaders: null,
       error: errorMessage(e),
     }
   }
@@ -139,6 +144,70 @@ export function checkTls(
       }),
     )
   })
+}
+
+/** Features the homeserver announces on GET /info. */
+export async function fetchFeatures(
+  domain: string,
+  port: number | null,
+): Promise<Array<string> | null> {
+  const url = `https://${domain}${port && port !== 443 ? `:${port}` : ''}/info`
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'user-agent': 'netky/0.1 (+https://netky.pubky.pastalabs.dev/about)',
+      },
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (!res.ok) return null
+    const body = (await res.json()) as { features?: unknown }
+    return Array.isArray(body.features)
+      ? body.features
+          .filter((f): f is string => typeof f === 'string')
+          .slice(0, 30)
+      : null
+  } catch {
+    return null
+  }
+}
+
+/** Downloads one public file (at most `maxBytes`) and returns the read speed. */
+export async function readTest(
+  domain: string,
+  port: number | null,
+  user: string,
+  path: string,
+  maxBytes = 8 * 1024 * 1024,
+): Promise<{ kbps: number; bytes: number } | null> {
+  const url = `https://${domain}${port && port !== 443 ? `:${port}` : ''}/pub/${path}`
+  const started = performance.now()
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'pubky-host': user,
+        'user-agent': 'netky/0.1 (+https://netky.pubky.pastalabs.dev/about)',
+      },
+      signal: AbortSignal.timeout(60_000),
+    })
+    if (!res.ok || !res.body) return null
+    let bytes = 0
+    const reader = res.body.getReader()
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      bytes += value.byteLength
+      if (bytes >= maxBytes) {
+        await reader.cancel()
+        break
+      }
+    }
+    const seconds = (performance.now() - started) / 1000
+    // Too small a file says more about latency than about throughput.
+    if (bytes < 32 * 1024 || seconds <= 0) return null
+    return { kbps: Math.round(bytes / 1024 / seconds), bytes }
+  } catch {
+    return null
+  }
 }
 
 export type SignupMode = 'open' | 'token'

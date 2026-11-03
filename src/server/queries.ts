@@ -57,6 +57,18 @@ export interface Homeserver {
   /** 'open': anyone can sign up; 'token': invite only; null: unknown. */
   signup: 'open' | 'token' | null
   server: string | null
+  /** Last write seen (live) or newest post ID; null while unknown. */
+  lastActivityAt: number | null
+  events24h: number
+  liveness: Liveness | null
+  activityIndexing: boolean
+  /** Features announced on /info (the closest thing to a version). */
+  features: Array<string> | null
+  /** The native PubkyTLS port answers (null: none published on a public IP). */
+  pubkyTls: boolean | null
+  securityHeaders: Array<string> | null
+  readKbps: number | null
+  readAt: number | null
   resolveError: string | null
 }
 
@@ -90,6 +102,11 @@ interface Row {
   operator_confirmed: number
   operator_name: string | null
   operator_avatar: number
+  features: string | null
+  pubky_tls_ok: number | null
+  security_headers: string | null
+  read_kbps: number | null
+  read_at: number | null
   signup_mode: string | null
 }
 
@@ -131,6 +148,7 @@ const pct = (v: number | null | undefined) =>
 function toHomeserver(
   r: Row,
   up?: { d1: number | null; d7: number | null; d30: number | null },
+  act?: ActivitySummary,
 ): Homeserver {
   const cdn = r.asn != null ? (CDN_ASNS.get(r.asn) ?? null) : null
   return {
@@ -182,6 +200,17 @@ function toHomeserver(
         ? r.signup_mode
         : null,
     server: r.server_header,
+    lastActivityAt: act?.lastActivityAt ?? null,
+    events24h: act?.events24h ?? 0,
+    liveness: act?.liveness ?? null,
+    activityIndexing: act?.indexing ?? false,
+    features: r.features ? (JSON.parse(r.features) as Array<string>) : null,
+    pubkyTls: r.pubky_tls_ok == null ? null : r.pubky_tls_ok === 1,
+    securityHeaders: r.security_headers
+      ? (JSON.parse(r.security_headers) as Array<string>)
+      : null,
+    readKbps: r.read_kbps,
+    readAt: r.read_at,
     resolveError: r.resolve_error,
   }
 }
@@ -198,8 +227,9 @@ export function listHomeservers(): Array<Homeserver> {
     .prepare('SELECT * FROM homeservers')
     .all() as unknown as Array<Row>
   const up = uptimes()
+  const acts = activitySummaries()
   return rows
-    .map((r) => toHomeserver(r, up.get(r.pubkey)))
+    .map((r) => toHomeserver(r, up.get(r.pubkey), acts.get(r.pubkey)))
     .sort(
       (a, b) =>
         ORDER[a.status] - ORDER[b.status] ||
@@ -212,7 +242,13 @@ export function getHomeserver(pubkey: string): Homeserver | null {
   const row = getDb()
     .prepare('SELECT * FROM homeservers WHERE pubkey = ?')
     .get(pubkey) as Row | undefined
-  return row ? toHomeserver(row, uptimes(pubkey).get(pubkey)) : null
+  return row
+    ? toHomeserver(
+        row,
+        uptimes(pubkey).get(pubkey),
+        activitySummaries().get(pubkey),
+      )
+    : null
 }
 
 export interface Probe {
@@ -246,6 +282,9 @@ export interface NetworkStats {
   homeservers: number
   up: number
   claimed: number
+  /** Events across all live homeservers, the last 24 hours. */
+  events24h: number
+  ghosts: number
   openSignups: number
   usersKnown: number
   usersResolved: number
@@ -289,6 +328,8 @@ export function networkStats(list = listHomeservers()): NetworkStats {
     homeservers: real.length,
     up: real.filter((h) => h.status === 'up').length,
     claimed: real.filter((h) => h.claimVerified).length,
+    events24h: list.reduce((a, h) => a + h.events24h, 0),
+    ghosts: real.filter((h) => h.liveness === 'ghost').length,
     openSignups: real.filter((h) => h.status === 'up' && h.signup === 'open')
       .length,
     usersKnown: u.known,
@@ -304,4 +345,215 @@ export function networkStats(list = listHomeservers()): NetworkStats {
       users: h.users_resolved,
     })),
   }
+}
+
+// --- Social activity (from the /events/ feeds) and the 30-day uptime ---
+
+export type Liveness = 'active' | 'quiet' | 'ghost'
+
+interface FeedRow {
+  homeserver: string
+  backfilled: number
+  live_since: number | null
+  events_total: number
+  last_event_at: number | null
+  last_post_at: number | null
+}
+
+export interface ActivitySummary {
+  lastActivityAt: number | null
+  events24h: number
+  /**
+   * active: activity within 7 days; quiet: within 30; ghost: last dated
+   * activity over 30 days ago and no write during 7+ days of live watching.
+   * null while unknown.
+   */
+  liveness: Liveness | null
+  /** Still reading the server's history: no verdict yet. */
+  indexing: boolean
+}
+
+function liveness(f: FeedRow | undefined, now: number): ActivitySummary {
+  if (!f)
+    return {
+      lastActivityAt: null,
+      events24h: 0,
+      liveness: null,
+      indexing: false,
+    }
+  // Mid-history, the newest post seen may be years old: no verdict yet.
+  if (!f.backfilled)
+    return {
+      lastActivityAt: null,
+      events24h: 0,
+      liveness: null,
+      indexing: true,
+    }
+  const last = Math.max(f.last_event_at ?? 0, f.last_post_at ?? 0) || null
+  let l: Liveness | null = null
+  if (last && now - last < 7 * DAY) l = 'active'
+  else if (last && now - last < 30 * DAY) l = 'quiet'
+  // Only posts are dated in the history; follows, tags… are not. So a ghost
+  // also needs a week of live watching with no write at all.
+  else if (
+    f.live_since &&
+    now - f.live_since > 7 * DAY &&
+    (!f.last_event_at || now - f.last_event_at > 7 * DAY)
+  )
+    l = 'ghost'
+  return { lastActivityAt: last, events24h: 0, liveness: l, indexing: false }
+}
+
+/** Last activity, events of the last 24 h and liveness of every homeserver. */
+export function activitySummaries(): Map<string, ActivitySummary> {
+  const db = getDb()
+  const now = Date.now()
+  const feeds = db
+    .prepare('SELECT * FROM feed_state')
+    .all() as unknown as Array<FeedRow>
+  const counts = new Map(
+    (
+      db
+        .prepare(
+          'SELECT homeserver, SUM(count) AS n FROM feed_hourly WHERE hour >= ? GROUP BY homeserver',
+        )
+        .all(now - DAY) as Array<{ homeserver: string; n: number }>
+    ).map((r) => [r.homeserver, r.n]),
+  )
+  return new Map(
+    feeds.map((f) => [
+      f.homeserver,
+      { ...liveness(f, now), events24h: counts.get(f.homeserver) ?? 0 },
+    ]),
+  )
+}
+
+export interface Activity extends ActivitySummary {
+  backfilled: boolean
+  liveSince: number | null
+  eventsTotal: number
+  /** Writes and deletes by kind, all time. */
+  byKind: Array<{ kind: string; put: number; del: number }>
+  /** Events per hour, the last 24 hours, oldest first (only since live tracking). */
+  hourly: Array<number>
+  events7d: number
+  activeUsers24h: number
+  activeUsers7d: number
+  apps: Array<{ app: string; events: number; lastSeenAt: number | null }>
+  /** Posts per day over the last 30 days, from post IDs. */
+  postsDaily: Array<{ day: string; count: number }>
+}
+
+export function activity(pubkey: string): Activity | null {
+  const db = getDb()
+  const now = Date.now()
+  const f = db
+    .prepare('SELECT * FROM feed_state WHERE homeserver = ?')
+    .get(pubkey) as FeedRow | undefined
+  if (!f) return null
+  const hourStart = Math.floor(now / HOUR) * HOUR
+  const hourlyRows = db
+    .prepare(
+      'SELECT hour, SUM(count) AS n FROM feed_hourly WHERE homeserver = ? AND hour > ? GROUP BY hour',
+    )
+    .all(pubkey, hourStart - 24 * HOUR) as Array<{ hour: number; n: number }>
+  const byHour = new Map(hourlyRows.map((r) => [r.hour, r.n]))
+  const hourly = Array.from(
+    { length: 24 },
+    (_, i) => byHour.get(hourStart - (23 - i) * HOUR) ?? 0,
+  )
+  const kinds = db
+    .prepare('SELECT kind, op, count FROM feed_counts WHERE homeserver = ?')
+    .all(pubkey) as Array<{ kind: string; op: string; count: number }>
+  const byKind = new Map<string, { kind: string; put: number; del: number }>()
+  for (const k of kinds) {
+    const e = byKind.get(k.kind) ?? { kind: k.kind, put: 0, del: 0 }
+    if (k.op === 'DEL') e.del += k.count
+    else e.put += k.count
+    byKind.set(k.kind, e)
+  }
+  const users = db
+    .prepare(
+      'SELECT SUM(last_seen_at > ?) AS d1, SUM(last_seen_at > ?) AS d7 FROM feed_users WHERE homeserver = ?',
+    )
+    .get(now - DAY, now - 7 * DAY, pubkey) as {
+    d1: number | null
+    d7: number | null
+  }
+  const events7d =
+    (
+      db
+        .prepare(
+          'SELECT SUM(count) AS n FROM feed_hourly WHERE homeserver = ? AND hour >= ?',
+        )
+        .get(pubkey, now - 7 * DAY) as { n: number | null }
+    ).n ?? 0
+  const apps = (
+    db
+      .prepare(
+        'SELECT app, events, last_seen_at FROM feed_apps WHERE homeserver = ? ORDER BY events DESC LIMIT 40',
+      )
+      .all(pubkey) as Array<{
+      app: string
+      events: number
+      last_seen_at: number | null
+    }>
+  ).map((a) => ({ app: a.app, events: a.events, lastSeenAt: a.last_seen_at }))
+  const firstDay = new Date(now - 29 * DAY).toISOString().slice(0, 10)
+  const daily = new Map(
+    (
+      db
+        .prepare(
+          'SELECT day, count FROM feed_posts_daily WHERE homeserver = ? AND day >= ?',
+        )
+        .all(pubkey, firstDay) as Array<{ day: string; count: number }>
+    ).map((d) => [d.day, d.count]),
+  )
+  const postsDaily = Array.from({ length: 30 }, (_, i) => {
+    const day = new Date(now - (29 - i) * DAY).toISOString().slice(0, 10)
+    return { day, count: daily.get(day) ?? 0 }
+  })
+  return {
+    ...liveness(f, now),
+    events24h: hourly.reduce((a, b) => a + b, 0),
+    backfilled: f.backfilled === 1,
+    liveSince: f.live_since,
+    eventsTotal: f.events_total,
+    byKind: [...byKind.values()].sort(
+      (a, b) => b.put + b.del - (a.put + a.del),
+    ),
+    hourly,
+    events7d,
+    activeUsers24h: users.d1 ?? 0,
+    activeUsers7d: users.d7 ?? 0,
+    apps,
+    postsDaily,
+  }
+}
+
+/** Share of successful checks per day, the last 30 days, oldest first. */
+export function uptimeDaily(
+  pubkey: string,
+): Array<{ day: string; uptime: number | null; checks: number }> {
+  const now = Date.now()
+  const rows = getDb()
+    .prepare(
+      `SELECT strftime('%Y-%m-%d', at / 1000, 'unixepoch') AS day, AVG(ok) AS up, COUNT(*) AS n
+       FROM probes WHERE homeserver = ? AND at > ? GROUP BY day`,
+    )
+    .all(pubkey, now - 30 * DAY) as Array<{
+    day: string
+    up: number
+    n: number
+  }>
+  const byDay = new Map(rows.map((r) => [r.day, r]))
+  return Array.from({ length: 30 }, (_, i) => {
+    const day = new Date(now - (29 - i) * DAY).toISOString().slice(0, 10)
+    const r = byDay.get(day)
+    return {
+      day,
+      uptime: r ? Math.round(r.up * 1000) / 10 : null,
+      checks: r?.n ?? 0,
+    }
+  })
 }

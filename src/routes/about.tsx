@@ -83,6 +83,14 @@ function About() {
           dummy token, to learn whether signups are open or invite only. Nothing
           is ever signed up.
         </li>
+        <li>
+          every six hours, <code>/info</code> (the features the server
+          announces) and a TCP connect to its native PubkyTLS port;
+        </li>
+        <li>
+          once a day, one download of a public file (at most 8 MB) to measure
+          read speed.
+        </li>
       </ul>
       <p>
         No port scan, no load test, no attempt to log in. Requests carry the
@@ -97,6 +105,45 @@ function About() {
         never a city. Servers behind a CDN such as Cloudflare are shown as such,
         since their IP only says where the CDN answered.
       </p>
+
+      <H2 id="activity">activity</H2>
+      <p>
+        A server that answers is not necessarily used. Every five minutes, Netky
+        reads each live homeserver&apos;s public event feed,{' '}
+        <code>/events/</code>, the same one Nexus indexes: one line per public
+        write or delete. From it come the writes per hour, the active users, the
+        mix of posts, follows, tags and files, and the apps writing there (the
+        folders under <code>/pub/</code>).
+      </p>
+      <p>
+        The feed carries no dates. New writes are dated when Netky reads them,
+        and posts are dated from their IDs, which encode their creation time.
+        Older follows or tags cannot be dated, so a server is only called a{' '}
+        <strong>ghost</strong> when its last dated activity is over 30 days old
+        and Netky saw no write during a week of watching it. While its history
+        is being read, a server shows as &quot;indexing&quot;.
+      </p>
+
+      <H2 id="not-done">what Netky does not do</H2>
+      <ul className="space-y-2 pl-5">
+        <li>
+          <strong>
+            No port scan, no load or rate-limit test, no probing of the admin
+            endpoint.
+          </strong>{' '}
+          That is security testing of servers Netky does not own: without the
+          operator&apos;s consent it is illegal in many countries, and a load
+          test also hurts the people using the server.
+        </li>
+        <li>
+          <strong>No software version.</strong> Homeservers do not announce one;
+          the features listed on <code>/info</code> are the closest thing.
+        </li>
+        <li>
+          <strong>No storage size or file count.</strong> Only the admin port,
+          never public, exposes them.
+        </li>
+      </ul>
 
       <H2 id="official">official homeservers</H2>
       <p>

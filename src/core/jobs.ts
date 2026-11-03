@@ -1,5 +1,12 @@
 import { DATA_DIR, getDb, setMeta, transaction } from './db.ts'
 import { lookupIp } from './geo.ts'
+import {
+  FEED_PAGE,
+  type FeedEvent,
+  classify,
+  fetchFeed,
+  postTime,
+} from './feed.ts'
 import { fetchProfile, listNexusUsers } from './nexus.ts'
 import {
   type SignedPacket,
@@ -11,6 +18,8 @@ import {
 } from './pkarr.ts'
 import {
   checkSignup,
+  fetchFeatures,
+  readTest,
   checkTls,
   errorMessage,
   probeHttp,
@@ -359,7 +368,8 @@ export async function probeAll(onlyPubkey?: string) {
   )
   const update = db.prepare(`
     UPDATE homeservers SET last_probe_at = ?, last_ok = ?, last_latency_ms = ?, last_error = ?,
-      is_pubky = COALESCE(?, is_pubky), server_header = COALESCE(?, server_header), powered_by = COALESCE(?, powered_by)
+      is_pubky = COALESCE(?, is_pubky), server_header = COALESCE(?, server_header), powered_by = COALESCE(?, powered_by),
+      security_headers = COALESCE(?, security_headers)
     WHERE pubkey = ?`)
   let up = 0
   await mapLimit(rows, 8, async (hs) => {
@@ -375,6 +385,7 @@ export async function probeAll(onlyPubkey?: string) {
         r.ok ? (r.isPubky ? 1 : 0) : null,
         r.server,
         r.poweredBy,
+        r.securityHeaders ? JSON.stringify(r.securityHeaders) : null,
         hs.pubkey,
       )
       if (r.ok) up++
@@ -402,6 +413,7 @@ export async function probeAll(onlyPubkey?: string) {
         null,
         null,
         null,
+        null,
         hs.pubkey,
       )
       return
@@ -413,6 +425,7 @@ export async function probeAll(onlyPubkey?: string) {
       r.ok ? 1 : 0,
       r.latencyMs,
       r.error,
+      null,
       null,
       null,
       null,
@@ -501,4 +514,219 @@ export function dailySnapshot() {
       homeservers = excluded.homeservers, homeservers_up = excluded.homeservers_up`,
   ).run(day, c.users_known, c.users_resolved, c.homeservers, c.homeservers_up)
   db.prepare('DELETE FROM probes WHERE at < ?').run(Date.now() - 90 * DAY)
+  db.prepare('DELETE FROM feed_hourly WHERE hour < ?').run(
+    Date.now() - 31 * DAY,
+  )
+  db.prepare('DELETE FROM feed_users WHERE last_seen_at < ?').run(
+    Date.now() - 31 * DAY,
+  )
+}
+
+const FEED_MAX_PAGES = 10 // per server and pass: 10 000 events at most
+
+/**
+ * Reads every live homeserver's /events/ feed from where it stopped. The
+ * history (backfill) feeds totals, apps and post dates; once the history is
+ * read, new events are also dated (hourly activity, active users).
+ */
+export async function syncFeeds(onlyPubkey?: string) {
+  const db = getDb()
+  const sql = `SELECT pubkey, domain, domain_port FROM homeservers
+    WHERE domain IS NOT NULL AND last_ok = 1 AND (is_pubky IS NULL OR is_pubky = 1)`
+  const servers = (
+    onlyPubkey
+      ? db.prepare(`${sql} AND pubkey = ?`).all(onlyPubkey)
+      : db.prepare(sql).all()
+  ) as Array<{ pubkey: string; domain: string; domain_port: number | null }>
+  let total = 0
+  await mapLimit(servers, 2, async (hs) => {
+    total += await syncFeed(hs.pubkey, hs.domain, hs.domain_port)
+  })
+  if (!onlyPubkey) log(`feeds: ${servers.length} servers, ${total} new events`)
+}
+
+async function syncFeed(
+  pubkey: string,
+  domain: string,
+  port: number | null,
+): Promise<number> {
+  const db = getDb()
+  db.prepare('INSERT OR IGNORE INTO feed_state (homeserver) VALUES (?)').run(
+    pubkey,
+  )
+  const state = db
+    .prepare('SELECT * FROM feed_state WHERE homeserver = ?')
+    .get(pubkey) as {
+    cursor: string
+    backfilled: number
+  }
+  let cursor = state.cursor
+  let backfilled = state.backfilled === 1
+  let seen = 0
+  const now = Date.now()
+  const hour = Math.floor(now / HOUR) * HOUR
+  try {
+    for (let page = 0; page < FEED_MAX_PAGES; page++) {
+      const { events, cursor: next } = await fetchFeed(domain, port, cursor)
+      if (events.length) {
+        // History is not dated; only events read after the backfill are.
+        const live = backfilled
+        transaction(() => recordEvents(pubkey, events, live ? now : null, hour))
+        seen += events.length
+      }
+      cursor = next
+      const last = events.length < FEED_PAGE
+      db.prepare(
+        'UPDATE feed_state SET cursor = ?, events_total = events_total + ?, checked_at = ?, error = NULL WHERE homeserver = ?',
+      ).run(cursor, events.length, now, pubkey)
+      if (last) {
+        if (!backfilled) {
+          backfilled = true
+          db.prepare(
+            'UPDATE feed_state SET backfilled = 1, live_since = ? WHERE homeserver = ?',
+          ).run(now, pubkey)
+        }
+        break
+      }
+    }
+  } catch (e) {
+    db.prepare(
+      'UPDATE feed_state SET checked_at = ?, error = ? WHERE homeserver = ?',
+    ).run(now, errorMessage(e), pubkey)
+  }
+  return seen
+}
+
+function recordEvents(
+  pubkey: string,
+  events: Array<FeedEvent>,
+  at: number | null,
+  hour: number,
+) {
+  const db = getDb()
+  const counts = new Map<string, number>()
+  const hourly = new Map<string, number>()
+  const apps = new Map<string, number>()
+  const days = new Map<string, number>()
+  const users = new Set<string>()
+  let lastPost: number | null = null
+  let blob: string | null = null
+  for (const ev of events) {
+    const { app, kind } = classify(ev.path)
+    counts.set(`${kind}|${ev.op}`, (counts.get(`${kind}|${ev.op}`) ?? 0) + 1)
+    apps.set(app, (apps.get(app) ?? 0) + 1)
+    if (at != null) {
+      hourly.set(kind, (hourly.get(kind) ?? 0) + 1)
+      users.add(ev.user)
+    }
+    if (ev.op === 'PUT') {
+      const t = postTime(ev.path)
+      if (t != null) {
+        lastPost = Math.max(lastPost ?? 0, t)
+        const day = new Date(t).toISOString().slice(0, 10)
+        days.set(day, (days.get(day) ?? 0) + 1)
+      }
+      if (kind === 'file' && ev.path.includes('/blobs/'))
+        blob = `${ev.user}/pub/${ev.path}`
+    }
+  }
+  const upCount = db.prepare(
+    'INSERT INTO feed_counts (homeserver, kind, op, count) VALUES (?, ?, ?, ?) ON CONFLICT DO UPDATE SET count = count + excluded.count',
+  )
+  for (const [key, n] of counts) {
+    const [kind, op] = key.split('|')
+    upCount.run(pubkey, kind, op, n)
+  }
+  const upApp = db.prepare(
+    'INSERT INTO feed_apps (homeserver, app, events, last_seen_at) VALUES (?, ?, ?, ?) ON CONFLICT DO UPDATE SET events = events + excluded.events, last_seen_at = COALESCE(excluded.last_seen_at, last_seen_at)',
+  )
+  for (const [app, n] of apps) upApp.run(pubkey, app, n, at)
+  const upDay = db.prepare(
+    'INSERT INTO feed_posts_daily (homeserver, day, count) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET count = count + excluded.count',
+  )
+  for (const [day, n] of days) upDay.run(pubkey, day, n)
+  if (at != null) {
+    const upHour = db.prepare(
+      'INSERT INTO feed_hourly (homeserver, hour, kind, count) VALUES (?, ?, ?, ?) ON CONFLICT DO UPDATE SET count = count + excluded.count',
+    )
+    for (const [kind, n] of hourly) upHour.run(pubkey, hour, kind, n)
+    const upUser = db.prepare(
+      'INSERT INTO feed_users (homeserver, user, last_seen_at) VALUES (?, ?, ?) ON CONFLICT DO UPDATE SET last_seen_at = excluded.last_seen_at',
+    )
+    for (const u of users) upUser.run(pubkey, u, at)
+    db.prepare(
+      'UPDATE feed_state SET last_event_at = ? WHERE homeserver = ?',
+    ).run(at, pubkey)
+  }
+  if (lastPost != null)
+    db.prepare(
+      'UPDATE feed_state SET last_post_at = MAX(COALESCE(last_post_at, 0), ?) WHERE homeserver = ?',
+    ).run(lastPost, pubkey)
+  if (blob)
+    db.prepare(
+      'UPDATE feed_state SET sample_blob = ? WHERE homeserver = ?',
+    ).run(blob, pubkey)
+}
+
+/** Every 6 h: features from /info, and whether the native PubkyTLS port answers. */
+export async function checkCapabilities() {
+  const db = getDb()
+  const rows = db
+    .prepare(
+      `SELECT pubkey, domain, domain_port, pubky_port, ipv4, ipv6, geo_ip FROM homeservers
+       WHERE resolved_at IS NOT NULL AND (is_pubky IS NULL OR is_pubky = 1)`,
+    )
+    .all() as Array<{
+    pubkey: string
+    domain: string | null
+    domain_port: number | null
+    pubky_port: number | null
+    ipv4: string | null
+    ipv6: string | null
+  }>
+  const update = db.prepare(
+    'UPDATE homeservers SET features = COALESCE(?, features), pubky_tls_ok = ? WHERE pubkey = ?',
+  )
+  await mapLimit(rows, 4, async (hs) => {
+    const features = hs.domain
+      ? await fetchFeatures(hs.domain, hs.domain_port)
+      : null
+    let tls: number | null = null
+    const ips = [
+      ...(JSON.parse(hs.ipv4 ?? '[]') as Array<string>),
+      ...(JSON.parse(hs.ipv6 ?? '[]') as Array<string>),
+    ].filter(isPublicIp)
+    if (hs.pubky_port && ips.length)
+      tls = (await probeTcp(ips[0], hs.pubky_port)).ok ? 1 : 0
+    update.run(features ? JSON.stringify(features) : null, tls, hs.pubkey)
+  })
+  log(`capabilities: ${rows.length} checked`)
+}
+
+/** Once a day: download one public file per server to measure read speed. */
+export async function readTests() {
+  const db = getDb()
+  const rows = db
+    .prepare(
+      `SELECT h.pubkey, h.domain, h.domain_port, f.sample_blob FROM homeservers h
+       JOIN feed_state f ON f.homeserver = h.pubkey
+       WHERE h.domain IS NOT NULL AND h.last_ok = 1 AND f.sample_blob IS NOT NULL`,
+    )
+    .all() as Array<{
+    pubkey: string
+    domain: string
+    domain_port: number | null
+    sample_blob: string
+  }>
+  const update = db.prepare(
+    'UPDATE homeservers SET read_kbps = ?, read_bytes = ?, read_at = ? WHERE pubkey = ?',
+  )
+  for (const hs of rows) {
+    const slash = hs.sample_blob.indexOf('/pub/')
+    const user = hs.sample_blob.slice(0, slash)
+    const path = hs.sample_blob.slice(slash + 5)
+    const r = await readTest(hs.domain, hs.domain_port, user, path)
+    if (r) update.run(r.kbps, r.bytes, Date.now(), hs.pubkey)
+  }
+  log(`read tests: ${rows.length} servers`)
 }

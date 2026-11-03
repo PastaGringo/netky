@@ -89,7 +89,7 @@ function Home() {
         aria-label="Network stats"
         className="mx-auto w-full max-w-6xl px-4 sm:px-6"
       >
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
           <Stat
             label="homeservers"
             value={stats.homeservers}
@@ -106,6 +106,15 @@ function Home() {
             sub="excluding CDN-fronted servers"
           />
           <Stat
+            label="activity 24h"
+            value={stats.events24h}
+            sub={
+              stats.ghosts
+                ? `writes · ${stats.ghosts} ghost server${stats.ghosts > 1 ? 's' : ''}`
+                : 'writes across the network'
+            }
+          />
+          <Stat
             label="open signups"
             value={stats.openSignups}
             sub={
@@ -114,7 +123,7 @@ function Home() {
                 : 'all invite only, ask an operator'
             }
           />
-          <div className="col-span-2 grid md:col-span-1">
+          <div className="grid">
             <Stat
               label="claimed"
               value={`${stats.claimed}/${stats.homeservers}`}
@@ -194,17 +203,18 @@ function Home() {
         </div>
 
         <div className="mt-4 border bg-panel/90">
-          <div className="hidden grid-cols-[6.5rem_minmax(0,1fr)_5rem_6rem_6rem_minmax(0,11rem)] gap-3 border-b px-4 py-2 text-xs text-dim uppercase md:grid">
+          <div className="hidden grid-cols-[6.5rem_minmax(0,1fr)_4rem_5.5rem_5rem_5rem_minmax(0,9.5rem)] gap-3 border-b px-4 py-2 text-xs text-dim uppercase md:grid">
             <span>status</span>
             <span>homeserver</span>
             <span className="text-right">users</span>
             <span className="text-right">uptime 7d</span>
             <span className="text-right">latency</span>
+            <span className="text-right">active</span>
             <span>location</span>
           </div>
           <ul className="m-0 list-none p-0">
             {shown.map((h) => (
-              <Row key={h.pubkey} h={h} />
+              <Row key={h.pubkey} h={h} now={now} />
             ))}
           </ul>
           {shown.length === 0 ? (
@@ -222,13 +232,13 @@ function Home() {
   )
 }
 
-function Row({ h }: { h: Homeserver }) {
+function Row({ h, now }: { h: Homeserver; now: number }) {
   return (
     <li className="border-b last:border-b-0">
       <Link
         to="/hs/$pubkey"
         params={{ pubkey: h.pubkey }}
-        className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1 px-4 py-3 hover:bg-panel-raised md:grid-cols-[6.5rem_minmax(0,1fr)_5rem_6rem_6rem_minmax(0,11rem)]"
+        className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1 px-4 py-3 hover:bg-panel-raised md:grid-cols-[6.5rem_minmax(0,1fr)_4rem_5.5rem_5rem_5rem_minmax(0,9.5rem)]"
       >
         <span>
           <StatusBadge status={h.status} />
@@ -277,6 +287,9 @@ function Row({ h }: { h: Homeserver }) {
           </span>
           <span className="md:text-right">
             <Latency ms={h.latencyMs} />
+          </span>
+          <span className="md:text-right">
+            <LastActive h={h} now={now} />
           </span>
           <span className="min-w-0 truncate text-dim">
             {h.cdn ? (
@@ -368,5 +381,51 @@ function Countries({
         </li>
       ) : null}
     </ul>
+  )
+}
+
+function shortAgo(ts: number, now: number) {
+  const m = Math.max(0, Math.round((now - ts) / 60_000))
+  if (m < 60) return m < 2 ? 'now' : `${m} min`
+  const h = Math.round(m / 60)
+  if (h < 48) return `${h} h`
+  return `${Math.round(h / 24)} d`
+}
+
+/** Last write seen on the server, or GHOST when nothing happened for 30 days. */
+function LastActive({ h, now }: { h: Homeserver; now: number }) {
+  if (h.liveness === 'ghost')
+    return (
+      <span
+        className="text-dim"
+        title="Answers, but nobody wrote anything for 30 days"
+      >
+        GHOST
+      </span>
+    )
+  if (h.activityIndexing)
+    return (
+      <span
+        className="text-dim"
+        title="Netky is still reading this server's history"
+      >
+        indexing
+      </span>
+    )
+  if (!h.lastActivityAt) return <span className="text-dim">—</span>
+  const color = h.liveness === 'active' ? 'text-green' : 'text-amber'
+  return (
+    <span
+      className={color}
+      title={
+        new Date(h.lastActivityAt)
+          .toISOString()
+          .slice(0, 16)
+          .replace('T', ' ') + ' UTC'
+      }
+    >
+      {shortAgo(h.lastActivityAt, now)}
+      <span className="text-dim md:hidden"> ago</span>
+    </span>
   )
 }

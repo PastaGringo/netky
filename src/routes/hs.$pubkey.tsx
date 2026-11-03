@@ -18,6 +18,8 @@ import { OFFICIAL_SOURCE } from '#/lib/official'
 import type { Probe } from '#/server/queries'
 import { ConfirmOperator } from '#/components/confirm-operator'
 import { NextCheck } from '#/components/next-check'
+import { ActivitySection, UptimeDays } from '#/components/activity'
+import { SECURITY_HEADERS } from '#/lib/security-headers'
 import { NotFound } from './__root'
 
 export const Route = createFileRoute('/hs/$pubkey')({
@@ -42,7 +44,13 @@ export const Route = createFileRoute('/hs/$pubkey')({
 })
 
 function Detail() {
-  const { homeserver: h, probes, now } = Route.useLoaderData()
+  const {
+    homeserver: h,
+    probes,
+    now,
+    activity,
+    uptimeDaily,
+  } = Route.useLoaderData()
   const tlsDays = h.tls?.expiresAt
     ? Math.floor((h.tls.expiresAt - now) / 86_400_000)
     : null
@@ -139,6 +147,15 @@ function Detail() {
         ) : null}
       </section>
 
+      <ActivitySection activity={activity} now={now} />
+
+      <section aria-labelledby="uptime30" className="mt-10">
+        <h2 id="uptime30" className="m-0 font-display text-2xl">
+          <span className="text-dim">$</span> uptime, 30 days
+        </h2>
+        <UptimeDays days={uptimeDaily} />
+      </section>
+
       <section aria-labelledby="details" className="mt-10">
         <h2 id="details" className="m-0 font-display text-2xl">
           <span className="text-dim">$</span> cat record
@@ -149,7 +166,6 @@ function Detail() {
               ? `https://${h.domain}${h.port && h.port !== 443 ? `:${h.port}` : ''}`
               : '—'}
           </Item>
-          <Item label="Pubky TLS port">{h.pubkyPort ?? '—'}</Item>
           <Item label="location">
             {h.cdn ? (
               `hidden behind ${h.cdn}`
@@ -172,6 +188,51 @@ function Detail() {
                 : 'unknown'}
           </Item>
           <Item label="server header">{h.server ?? '—'}</Item>
+          <Item label="native PubkyTLS">
+            {h.pubkyTls == null
+              ? 'no port published on a public address'
+              : h.pubkyTls
+                ? `port ${h.pubkyPort} answers`
+                : `port ${h.pubkyPort} does not answer`}
+          </Item>
+          <Item label="features (/info)">
+            {h.features?.length ? (
+              <span className="flex flex-wrap gap-1.5">
+                {h.features.map((f) => (
+                  <code key={f} className="border px-1.5 text-xs">
+                    {f}
+                  </code>
+                ))}
+              </span>
+            ) : (
+              '—'
+            )}
+          </Item>
+          <Item label="security headers">
+            {h.securityHeaders == null ? (
+              '—'
+            ) : (
+              <span className="flex flex-wrap gap-1.5">
+                {SECURITY_HEADERS.map((name) => {
+                  const on = h.securityHeaders!.includes(name)
+                  return (
+                    <code
+                      key={name}
+                      className={`border px-1.5 text-xs ${on ? 'border-green/60 text-green' : 'text-dim line-through'}`}
+                      title={on ? 'sent' : 'not sent'}
+                    >
+                      {name}
+                    </code>
+                  )
+                })}
+              </span>
+            )}
+          </Item>
+          <Item label="read speed">
+            {h.readKbps
+              ? `${h.readKbps >= 1024 ? `${(h.readKbps / 1024).toFixed(1)} MB/s` : `${h.readKbps} KB/s`} · one public file, ${ago(h.readAt, now)}`
+              : 'not measured yet (daily, on one public file)'}
+          </Item>
           <Item label="operator">
             {h.operator ? (
               <>

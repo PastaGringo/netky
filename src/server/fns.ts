@@ -4,7 +4,9 @@ import {
   getHomeserver,
   listHomeservers,
   networkStats,
+  activity,
   recentProbes,
+  uptimeDaily,
 } from './queries.ts'
 
 export const getOverview = createServerFn({ method: 'GET' }).handler(() => {
@@ -23,6 +25,12 @@ export const getHomeserverDetail = createServerFn({ method: 'GET' })
   .handler(({ data: pubkey }) => {
     const homeserver = getHomeserver(pubkey)
     return homeserver
-      ? { homeserver, probes: recentProbes(pubkey), now: Date.now() }
+      ? {
+          homeserver,
+          probes: recentProbes(pubkey),
+          activity: activity(pubkey),
+          uptimeDaily: uptimeDaily(pubkey),
+          now: Date.now(),
+        }
       : null
   })
