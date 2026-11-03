@@ -191,10 +191,10 @@ function About() {
 
       <H2 id="official">official homeservers</H2>
       <p>
-        Servers marked <span className="text-red">OFFICIAL</span> are run by
-        Synonym, the company behind Pubky: their production homeserver (where
-        pubky.app users live) and their staging one. They are recognised by
-        their key, as listed in the{' '}
+        Servers marked with the Synonym logo are run by Synonym, the company
+        behind Pubky: their production homeserver (where pubky.app users live)
+        and their staging one. They are recognised by their key, as listed in
+        the{' '}
         <a href={OFFICIAL_SOURCE} className="underline hover:text-red">
           Pubky Ring source code
         </a>

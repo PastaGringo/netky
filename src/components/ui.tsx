@@ -165,12 +165,14 @@ export function OfficialBadge({
   official: 'production' | 'staging' | null
 }) {
   if (!official) return null
+  const label = `Official Pubky homeserver run by Synonym (${official})`
   return (
     <span
-      className="inline-block border border-red px-1.5 text-xs leading-5 font-semibold whitespace-nowrap text-red"
-      title={`Official Pubky homeserver run by Synonym (${official})`}
+      className="inline-flex shrink-0 items-center gap-1.5 text-xs leading-5 font-semibold whitespace-nowrap text-dim"
+      title={label}
     >
-      {official === 'staging' ? 'OFFICIAL · STAGING' : 'OFFICIAL'}
+      <img src="/synonym.svg" alt={label} width={80} height={20} />
+      {official === 'staging' ? 'STAGING' : null}
     </span>
   )
 }
