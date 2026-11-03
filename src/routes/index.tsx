@@ -9,6 +9,7 @@ import {
   ago,
   Avatar,
   Flag,
+  OfficialBadge,
   shortKey,
 } from '#/components/ui'
 import { getOverview } from '#/server/fns'
@@ -233,8 +234,11 @@ function Row({ h }: { h: Homeserver }) {
           <StatusBadge status={h.status} />
         </span>
         <span className="min-w-0">
-          <span className="block truncate text-text">
-            {h.domain ?? shortKey(h.pubkey)}
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-text">
+              {h.domain ?? shortKey(h.pubkey)}
+            </span>
+            <OfficialBadge official={h.official} />
           </span>
           <span className="block truncate text-xs text-dim">
             {h.domain ? shortKey(h.pubkey) : 'no ICANN domain'}

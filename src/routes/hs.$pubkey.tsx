@@ -8,11 +8,13 @@ import {
   ago,
   Avatar,
   Flag,
+  OfficialBadge,
   SignupBadge,
   fmtDate,
   shortKey,
 } from '#/components/ui'
 import { getHomeserverDetail } from '#/server/fns'
+import { OFFICIAL_SOURCE } from '#/lib/official'
 import type { Probe } from '#/server/queries'
 import { ConfirmOperator } from '#/components/confirm-operator'
 import { NextCheck } from '#/components/next-check'
@@ -55,6 +57,7 @@ function Detail() {
       </Link>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <StatusBadge status={h.status} />
+        <OfficialBadge official={h.official} />
         <SignupBadge mode={h.signup} />
         {h.claimVerified ? (
           <span className="border border-cyan px-1.5 text-xs leading-5 text-cyan">
@@ -202,6 +205,13 @@ function Detail() {
                     </span>
                   )}
                 </span>
+              </>
+            ) : h.official ? (
+              <>
+                Synonym, the company behind Pubky ·{' '}
+                <a href={OFFICIAL_SOURCE} className="underline hover:text-red">
+                  official {h.official} homeserver
+                </a>
               </>
             ) : (
               <>

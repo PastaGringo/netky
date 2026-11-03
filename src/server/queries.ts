@@ -1,6 +1,7 @@
 // Read side, shared by the pages (server functions) and the public API.
 // Only ever imported from server code.
 import { getDb } from '#/core/db.ts'
+import { OFFICIAL } from '#/lib/official.ts'
 
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
@@ -18,6 +19,8 @@ const CDN_ASNS = new Map([
 export type Status = 'up' | 'down' | 'not-pubky' | 'unresolved'
 
 export interface Homeserver {
+  /** Run by Synonym: their production or staging homeserver. */
+  official: 'production' | 'staging' | null
   pubkey: string
   status: Status
   domain: string | null
@@ -132,6 +135,7 @@ function toHomeserver(
   const cdn = r.asn != null ? (CDN_ASNS.get(r.asn) ?? null) : null
   return {
     pubkey: r.pubkey,
+    official: OFFICIAL[r.pubkey] ?? null,
     status: statusOf(r),
     domain: r.domain,
     port: r.domain_port,

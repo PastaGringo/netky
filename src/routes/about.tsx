@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { REPO } from '#/components/site'
+import { OFFICIAL_SOURCE } from '#/lib/official'
 
 export const Route = createFileRoute('/about')({
   head: () => ({ meta: [{ title: 'How it works · netky' }] }),
@@ -95,6 +96,19 @@ function About() {
         address is sent to a third party. Only the country and network are kept,
         never a city. Servers behind a CDN such as Cloudflare are shown as such,
         since their IP only says where the CDN answered.
+      </p>
+
+      <H2 id="official">official homeservers</H2>
+      <p>
+        Servers marked <span className="text-red">OFFICIAL</span> are run by
+        Synonym, the company behind Pubky: their production homeserver (where
+        pubky.app users live) and their staging one. They are recognised by
+        their key, as listed in the{' '}
+        <a href={OFFICIAL_SOURCE} className="underline hover:text-red">
+          Pubky Ring source code
+        </a>
+        , never by their domain: anyone can announce{' '}
+        <code>homeserver.pubky.app</code> in their own record.
       </p>
 
       <H2 id="claim">claim your homeserver</H2>

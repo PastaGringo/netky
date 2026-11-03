@@ -158,3 +158,19 @@ export function Avatar({
     </span>
   )
 }
+
+export function OfficialBadge({
+  official,
+}: {
+  official: 'production' | 'staging' | null
+}) {
+  if (!official) return null
+  return (
+    <span
+      className="inline-block border border-red px-1.5 text-xs leading-5 font-semibold whitespace-nowrap text-red"
+      title={`Official Pubky homeserver run by Synonym (${official})`}
+    >
+      {official === 'staging' ? 'OFFICIAL · STAGING' : 'OFFICIAL'}
+    </span>
+  )
+}
