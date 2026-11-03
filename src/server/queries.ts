@@ -149,7 +149,10 @@ function uptimes(pubkey?: string) {
 
 function statusOf(r: Row): Status {
   if (!r.domain && !r.pubky_port) return 'unresolved'
-  if (r.last_ok === 1 && r.is_pubky === 0) return 'not-pubky'
+  // Something answers, but not a homeserver. If this key once did answer as
+  // one, it is gone (a reverse proxy now answers for it), not something else.
+  if (r.last_ok === 1 && r.is_pubky === 0)
+    return r.last_alive_at == null ? 'not-pubky' : 'down'
   return r.last_ok === 1 ? 'up' : 'down'
 }
 
@@ -162,11 +165,13 @@ function toHomeserver(
   act?: ActivitySummary,
 ): Homeserver {
   const cdn = r.asn != null ? (CDN_ASNS.get(r.asn) ?? null) : null
-  const leaves = retiresAt(statusOf(r), r.last_alive_at, r.first_seen)
+  const status = statusOf(r)
+  const answering = status === 'up' || status === 'not-pubky'
+  const leaves = retiresAt(status, r.last_alive_at, r.first_seen)
   const base: Omit<Homeserver, 'security'> = {
     pubkey: r.pubkey,
     official: OFFICIAL[r.pubkey] ?? null,
-    status: statusOf(r),
+    status,
     retired: leaves != null && leaves <= Date.now(),
     retiresAt: leaves,
     domain: r.domain,
@@ -175,8 +180,8 @@ function toHomeserver(
     users: r.user_count,
     firstSeen: r.first_seen,
     lastProbeAt: r.last_probe_at,
-    latencyMs: r.last_ok === 1 ? r.last_latency_ms : null,
-    lastError: r.last_ok === 1 ? null : r.last_error,
+    latencyMs: answering ? r.last_latency_ms : null,
+    lastError: answering ? null : r.last_error,
     country: cdn ? null : r.country,
     countryName: cdn ? null : r.country_name,
     asn: r.asn,

@@ -81,9 +81,24 @@ test('the list leaves out servers gone for over 7 days', async () => {
   lastAlive('recent', now - DAY)
   lastAlive('deleted', now - 8 * DAY)
   lastAlive('gone', now - 8 * DAY)
-  assert.equal(getHomeserver('deleted')?.status, 'not-pubky')
+  assert.equal(getHomeserver('deleted')?.status, 'down')
+  assert.equal(getHomeserver('new')?.status, 'not-pubky')
   assert.equal(getHomeserver('gone')?.status, 'down')
   assert.deepEqual(listed(), ['alive', 'new', 'recent'])
+})
+
+test('a homeserver gone behind a wildcard reads as down, with no uptime', () => {
+  const h = getHomeserver('deleted')
+  assert.equal(h?.latencyMs, null)
+  assert.equal(h?.lastError, 'HTTP 404, not a homeserver')
+  assert.equal(h?.uptime30d, 0)
+  assert.equal(getHomeserver('alive')?.uptime30d, 100)
+})
+
+test('an address that never was a homeserver keeps saying so', () => {
+  const h = getHomeserver('new')
+  assert.equal(h?.status, 'not-pubky')
+  assert.equal(h?.lastError, null)
 })
 
 test('the totals leave them out too', () => {

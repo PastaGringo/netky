@@ -382,20 +382,32 @@ export async function probeAll(onlyPubkey?: string) {
     const at = Date.now()
     if (hs.domain) {
       const r = await probeHttp(hs.domain, hs.domain_port)
-      insert.run(hs.pubkey, at, r.ok ? 1 : 0, r.latencyMs, r.status, r.error)
+      // Uptime counts answers as a homeserver: a reverse proxy's 404 at the
+      // address of a deleted one is not the server being up.
+      const asHomeserver = r.ok && r.isPubky
+      const error =
+        r.error ?? (asHomeserver ? null : `HTTP ${r.status}, not a homeserver`)
+      insert.run(
+        hs.pubkey,
+        at,
+        asHomeserver ? 1 : 0,
+        r.latencyMs,
+        r.status,
+        error,
+      )
       update.run(
         at,
         r.ok ? 1 : 0,
         r.latencyMs,
-        r.error,
+        error,
         r.ok ? (r.isPubky ? 1 : 0) : null,
         r.server,
         r.poweredBy,
         r.securityHeaders ? JSON.stringify(r.securityHeaders) : null,
         hs.pubkey,
       )
-      if (r.ok && r.isPubky) alive.run(at, hs.pubkey)
-      if (r.ok) up++
+      if (asHomeserver) alive.run(at, hs.pubkey)
+      if (asHomeserver) up++
       return
     }
     const ips = [
@@ -507,7 +519,7 @@ export function dailySnapshot() {
         (SELECT COUNT(*) FROM users) AS users_known,
         (SELECT COUNT(*) FROM users WHERE homeserver IS NOT NULL) AS users_resolved,
         (SELECT COUNT(*) FROM homeservers WHERE resolved_at IS NOT NULL) AS homeservers,
-        (SELECT COUNT(*) FROM homeservers WHERE last_ok = 1) AS homeservers_up`,
+        (SELECT COUNT(*) FROM homeservers WHERE last_ok = 1 AND is_pubky IS NOT 0) AS homeservers_up`,
     )
     .get() as {
     users_known: number
