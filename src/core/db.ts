@@ -157,6 +157,14 @@ const MIGRATIONS: Array<string> = [
   ALTER TABLE feed_state ADD COLUMN backfill_end TEXT;
   ALTER TABLE feed_state ADD COLUMN pause_until INTEGER; -- after a 429
   `,
+  // When a server last answered as a homeserver. A deleted one behind a
+  // wildcard domain still answers HTTP, so last_ok alone cannot tell.
+  `
+  ALTER TABLE homeservers ADD COLUMN last_alive_at INTEGER;
+  UPDATE homeservers SET last_alive_at = (
+    SELECT MAX(at) FROM probes WHERE homeserver = pubkey AND ok = 1
+  ) WHERE is_pubky IS NOT 0;
+  `,
 ]
 
 function migrate(d: DatabaseSync) {

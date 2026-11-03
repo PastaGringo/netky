@@ -374,6 +374,9 @@ export async function probeAll(onlyPubkey?: string) {
       is_pubky = COALESCE(?, is_pubky), server_header = COALESCE(?, server_header), powered_by = COALESCE(?, powered_by),
       security_headers = COALESCE(?, security_headers)
     WHERE pubkey = ?`)
+  const alive = db.prepare(
+    'UPDATE homeservers SET last_alive_at = ? WHERE pubkey = ?',
+  )
   let up = 0
   await mapLimit(rows, 8, async (hs) => {
     const at = Date.now()
@@ -391,6 +394,7 @@ export async function probeAll(onlyPubkey?: string) {
         r.securityHeaders ? JSON.stringify(r.securityHeaders) : null,
         hs.pubkey,
       )
+      if (r.ok && r.isPubky) alive.run(at, hs.pubkey)
       if (r.ok) up++
       return
     }
@@ -423,6 +427,7 @@ export async function probeAll(onlyPubkey?: string) {
     }
     const r = await probeTcp(ip, hs.pubky_port)
     insert.run(hs.pubkey, at, r.ok ? 1 : 0, r.latencyMs, null, r.error)
+    if (r.ok) alive.run(at, hs.pubkey)
     update.run(
       at,
       r.ok ? 1 : 0,

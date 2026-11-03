@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { REPO } from '#/components/site'
 import { OFFICIAL_SOURCE } from '#/lib/official'
+import { RETIRED_AFTER_DAYS } from '#/lib/retired'
 
 export const Route = createFileRoute('/about')({
   head: () => ({ meta: [{ title: 'How it works · netky' }] }),
@@ -122,6 +123,14 @@ function About() {
         <strong>ghost</strong> when its last dated activity is over 30 days old
         and Netky saw no write during a week of watching it. While its history
         is being read, a server shows as &quot;indexing&quot;.
+      </p>
+
+      <H2 id="retired">servers that go away</H2>
+      <p>
+        A server that has not answered as a homeserver for {RETIRED_AFTER_DAYS}{' '}
+        days leaves the list, the map and the totals. Netky keeps checking it,
+        so it comes back by itself at its first answer, and its page and API URL
+        stay reachable by key.
       </p>
 
       <H2 id="security">security score</H2>

@@ -29,7 +29,10 @@ Live at <https://netky.pubky.pastalabs.dev>.
 
 No port scan, no load or rate-limit test, no probing of admin endpoints.
 
-A homeserver that no user known to Nexus points to stays invisible.
+A homeserver that no user known to Nexus points to stays invisible. One that
+has not answered as a homeserver for 7 days leaves the list and the totals,
+but is still checked: it comes back at its first answer, and its page stays
+reachable.
 
 ## Claiming a homeserver
 

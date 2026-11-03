@@ -2,6 +2,7 @@
 // Only ever imported from server code.
 import { getDb } from '#/core/db.ts'
 import { OFFICIAL } from '#/lib/official.ts'
+import { isRetired } from '#/lib/retired.ts'
 import { type Security, securityScore } from '#/lib/security.ts'
 
 const HOUR = 3_600_000
@@ -24,6 +25,8 @@ export interface Homeserver {
   official: 'production' | 'staging' | null
   pubkey: string
   status: Status
+  /** Gone long enough to leave the list. Its own page and API URL remain. */
+  retired: boolean
   domain: string | null
   port: number | null
   pubkyPort: number | null
@@ -87,6 +90,7 @@ interface Row {
   resolve_error: string | null
   last_probe_at: number | null
   last_ok: number | null
+  last_alive_at: number | null
   last_latency_ms: number | null
   last_error: string | null
   is_pubky: number | null
@@ -160,6 +164,7 @@ function toHomeserver(
     pubkey: r.pubkey,
     official: OFFICIAL[r.pubkey] ?? null,
     status: statusOf(r),
+    retired: isRetired(statusOf(r), r.last_alive_at, r.first_seen),
     domain: r.domain,
     port: r.domain_port,
     pubkyPort: r.pubky_port,
@@ -241,6 +246,7 @@ export function listHomeservers(): Array<Homeserver> {
   const acts = activitySummaries()
   return rows
     .map((r) => toHomeserver(r, up.get(r.pubkey), acts.get(r.pubkey)))
+    .filter((h) => !h.retired)
     .sort(
       (a, b) =>
         ORDER[a.status] - ORDER[b.status] ||
