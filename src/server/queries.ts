@@ -2,6 +2,7 @@
 // Only ever imported from server code.
 import { getDb } from '#/core/db.ts'
 import { OFFICIAL } from '#/lib/official.ts'
+import { type Security, securityScore } from '#/lib/security.ts'
 
 const HOUR = 3_600_000
 const DAY = 24 * HOUR
@@ -67,6 +68,9 @@ export interface Homeserver {
   /** The native PubkyTLS port answers (null: none published on a public IP). */
   pubkyTls: boolean | null
   securityHeaders: Array<string> | null
+  poweredBy: string | null
+  /** Passive security score; null until the server answered over HTTPS. */
+  security: Security | null
   readKbps: number | null
   readAt: number | null
   resolveError: string | null
@@ -105,6 +109,7 @@ interface Row {
   features: string | null
   pubky_tls_ok: number | null
   security_headers: string | null
+  powered_by: string | null
   read_kbps: number | null
   read_at: number | null
   signup_mode: string | null
@@ -151,7 +156,7 @@ function toHomeserver(
   act?: ActivitySummary,
 ): Homeserver {
   const cdn = r.asn != null ? (CDN_ASNS.get(r.asn) ?? null) : null
-  return {
+  const base: Omit<Homeserver, 'security'> = {
     pubkey: r.pubkey,
     official: OFFICIAL[r.pubkey] ?? null,
     status: statusOf(r),
@@ -209,9 +214,15 @@ function toHomeserver(
     securityHeaders: r.security_headers
       ? (JSON.parse(r.security_headers) as Array<string>)
       : null,
+    poweredBy: r.powered_by,
     readKbps: r.read_kbps,
     readAt: r.read_at,
     resolveError: r.resolve_error,
+  }
+  // No score for something that is not a Pubky homeserver.
+  return {
+    ...base,
+    security: base.status === 'not-pubky' ? null : securityScore(base),
   }
 }
 

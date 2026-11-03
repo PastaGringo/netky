@@ -124,6 +124,41 @@ function About() {
         is being read, a server shows as &quot;indexing&quot;.
       </p>
 
+      <H2 id="security">security score</H2>
+      <p>
+        A score out of 100, built only from what Netky already observes: nothing
+        is tested for it. Each check counts only where it applies, and the score
+        is the share of the applicable points.
+      </p>
+      <ul className="space-y-1 pl-5">
+        <li>valid TLS certificate: 30</li>
+        <li>certificate valid for 14+ more days: 5</li>
+        <li>
+          HSTS (<code>strict-transport-security</code>): 15, so browsers never
+          fall back to plain HTTP
+        </li>
+        <li>
+          <code>x-content-type-options: nosniff</code>: 15, since homeservers
+          host files uploaded by their users
+        </li>
+        <li>
+          native PubkyTLS port answers: 10, TLS authenticated by the
+          server&apos;s own key
+        </li>
+        <li>no software version in the Server header: 5</li>
+        <li>no X-Powered-By header: 5</li>
+        <li>
+          only for servers that publish websites (the <code>websites</code>{' '}
+          feature): Content-Security-Policy 10, framing protection 5
+        </li>
+      </ul>
+      <p>
+        Grades: A from 90, B from 75, C from 60, D from 40, F below. Headers
+        such as CSP matter for web pages, not for an API, which is why they only
+        count where the server hosts sites. A good score says the basics are in
+        place; it is not an audit.
+      </p>
+
       <H2 id="not-done">what Netky does not do</H2>
       <ul className="space-y-2 pl-5">
         <li>

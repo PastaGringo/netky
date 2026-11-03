@@ -174,3 +174,28 @@ export function OfficialBadge({
     </span>
   )
 }
+
+const GRADE_COLOR: Record<string, string> = {
+  A: 'text-green border-green',
+  B: 'text-green border-green/60',
+  C: 'text-amber border-amber',
+  D: 'text-red border-red/70',
+  F: 'text-red border-red',
+}
+
+/** Security grade, e.g. "B 78". */
+export function GradeBadge({
+  security,
+}: {
+  security: { score: number; grade: string } | null
+}) {
+  if (!security) return <span className="text-dim">—</span>
+  return (
+    <span
+      className={`inline-block border px-1.5 text-xs leading-5 font-semibold whitespace-nowrap tabular-nums ${GRADE_COLOR[security.grade]}`}
+      title={`Security score ${security.score}/100 (passive checks)`}
+    >
+      {security.grade} {security.score}
+    </span>
+  )
+}

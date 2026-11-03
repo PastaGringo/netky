@@ -8,6 +8,7 @@ import {
   ago,
   Avatar,
   Flag,
+  GradeBadge,
   OfficialBadge,
   SignupBadge,
   fmtDate,
@@ -18,8 +19,8 @@ import { OFFICIAL_SOURCE } from '#/lib/official'
 import type { Probe } from '#/server/queries'
 import { ConfirmOperator } from '#/components/confirm-operator'
 import { NextCheck } from '#/components/next-check'
+import { SecuritySection } from '#/components/security'
 import { ActivitySection, UptimeDays } from '#/components/activity'
-import { SECURITY_HEADERS } from '#/lib/security-headers'
 import { NotFound } from './__root'
 
 export const Route = createFileRoute('/hs/$pubkey')({
@@ -66,6 +67,7 @@ function Detail() {
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <StatusBadge status={h.status} />
         <OfficialBadge official={h.official} />
+        {h.security ? <GradeBadge security={h.security} /> : null}
         <SignupBadge mode={h.signup} />
         {h.claimVerified ? (
           <span className="border border-cyan px-1.5 text-xs leading-5 text-cyan">
@@ -156,6 +158,8 @@ function Detail() {
         <UptimeDays days={uptimeDaily} />
       </section>
 
+      <SecuritySection security={h.security} />
+
       <section aria-labelledby="details" className="mt-10">
         <h2 id="details" className="m-0 font-display text-2xl">
           <span className="text-dim">$</span> cat record
@@ -206,26 +210,6 @@ function Detail() {
               </span>
             ) : (
               '—'
-            )}
-          </Item>
-          <Item label="security headers">
-            {h.securityHeaders == null ? (
-              '—'
-            ) : (
-              <span className="flex flex-wrap gap-1.5">
-                {SECURITY_HEADERS.map((name) => {
-                  const on = h.securityHeaders!.includes(name)
-                  return (
-                    <code
-                      key={name}
-                      className={`border px-1.5 text-xs ${on ? 'border-green/60 text-green' : 'text-dim line-through'}`}
-                      title={on ? 'sent' : 'not sent'}
-                    >
-                      {name}
-                    </code>
-                  )
-                })}
-              </span>
             )}
           </Item>
           <Item label="read speed">

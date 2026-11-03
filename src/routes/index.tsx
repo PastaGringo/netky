@@ -9,6 +9,7 @@ import {
   ago,
   Avatar,
   Flag,
+  GradeBadge,
   OfficialBadge,
   shortKey,
 } from '#/components/ui'
@@ -203,13 +204,14 @@ function Home() {
         </div>
 
         <div className="mt-4 border bg-panel/90">
-          <div className="hidden grid-cols-[6.5rem_minmax(0,1fr)_4rem_5.5rem_5rem_5rem_minmax(0,9.5rem)] gap-3 border-b px-4 py-2 text-xs text-dim uppercase md:grid">
+          <div className="hidden grid-cols-[6.5rem_minmax(0,1fr)_4rem_5rem_4.5rem_4.5rem_4.5rem_minmax(0,9rem)] gap-3 border-b px-4 py-2 text-xs text-dim uppercase md:grid">
             <span>status</span>
             <span>homeserver</span>
             <span className="text-right">users</span>
             <span className="text-right">uptime 7d</span>
             <span className="text-right">latency</span>
             <span className="text-right">active</span>
+            <span className="text-right">security</span>
             <span>location</span>
           </div>
           <ul className="m-0 list-none p-0">
@@ -238,7 +240,7 @@ function Row({ h, now }: { h: Homeserver; now: number }) {
       <Link
         to="/hs/$pubkey"
         params={{ pubkey: h.pubkey }}
-        className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1 px-4 py-3 hover:bg-panel-raised md:grid-cols-[6.5rem_minmax(0,1fr)_4rem_5.5rem_5rem_5rem_minmax(0,9.5rem)]"
+        className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1 px-4 py-3 hover:bg-panel-raised md:grid-cols-[6.5rem_minmax(0,1fr)_4rem_5rem_4.5rem_4.5rem_4.5rem_minmax(0,9rem)]"
       >
         <span>
           <StatusBadge status={h.status} />
@@ -290,6 +292,9 @@ function Row({ h, now }: { h: Homeserver; now: number }) {
           </span>
           <span className="md:text-right">
             <LastActive h={h} now={now} />
+          </span>
+          <span className="md:text-right">
+            <GradeBadge security={h.security} />
           </span>
           <span className="min-w-0 truncate text-dim">
             {h.cdn ? (
