@@ -191,6 +191,21 @@ const MIGRATIONS: Array<string> = [
     post_uri TEXT
   );
   `,
+  // Servers deleted before last_alive_at existed. A feed with events proves
+  // one was a homeserver, and its last 200 dates the end. For the others that
+  // read as "not pubky", no past answer counted as uptime.
+  `
+  UPDATE homeservers SET last_alive_at = (
+    SELECT MAX(at) FROM probes WHERE homeserver = pubkey AND ok = 1 AND status = 200
+  ) WHERE is_pubky = 0 AND last_alive_at IS NULL AND EXISTS (
+    SELECT 1 FROM feed_state WHERE homeserver = pubkey AND events_total > 0
+  );
+  UPDATE probes SET ok = 0 WHERE ok = 1 AND homeserver IN (
+    SELECT pubkey FROM homeservers WHERE is_pubky = 0
+  ) AND (status IS NOT 200 OR homeserver IN (
+    SELECT pubkey FROM homeservers WHERE is_pubky = 0 AND last_alive_at IS NULL
+  ));
+  `,
 ]
 
 function migrate(d: DatabaseSync) {
