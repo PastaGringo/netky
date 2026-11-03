@@ -11,9 +11,15 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ApiConfirmRouteImport } from './routes/api/confirm'
 import { Route as AvatarsPubkeyRouteImport } from './routes/avatars.$pubkey'
 import { Route as HsPubkeyRouteImport } from './routes/hs.$pubkey'
+import { Route as ApiAdminAccountRouteImport } from './routes/api/admin/account'
+import { Route as ApiAdminFlowRouteImport } from './routes/api/admin/flow'
+import { Route as ApiAdminLoginRouteImport } from './routes/api/admin/login'
+import { Route as ApiAdminLogoutRouteImport } from './routes/api/admin/logout'
+import { Route as ApiAdminMeRouteImport } from './routes/api/admin/me'
 import { Route as ApiConfirmIdRouteImport } from './routes/api/confirm.$id'
 import { Route as ApiV1HomeserversRouteImport } from './routes/api/v1/homeservers'
 import { Route as ApiV1StatsRouteImport } from './routes/api/v1/stats'
@@ -29,6 +35,11 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiConfirmRoute = ApiConfirmRouteImport.update({
   id: '/api/confirm',
   path: '/api/confirm',
@@ -42,6 +53,31 @@ const AvatarsPubkeyRoute = AvatarsPubkeyRouteImport.update({
 const HsPubkeyRoute = HsPubkeyRouteImport.update({
   id: '/hs/$pubkey',
   path: '/hs/$pubkey',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminAccountRoute = ApiAdminAccountRouteImport.update({
+  id: '/api/admin/account',
+  path: '/api/admin/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminFlowRoute = ApiAdminFlowRouteImport.update({
+  id: '/api/admin/flow',
+  path: '/api/admin/flow',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminLoginRoute = ApiAdminLoginRouteImport.update({
+  id: '/api/admin/login',
+  path: '/api/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminLogoutRoute = ApiAdminLogoutRouteImport.update({
+  id: '/api/admin/logout',
+  path: '/api/admin/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminMeRoute = ApiAdminMeRouteImport.update({
+  id: '/api/admin/me',
+  path: '/api/admin/me',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiConfirmIdRoute = ApiConfirmIdRouteImport.update({
@@ -68,9 +104,15 @@ const ApiV1HomeserversPubkeyRoute = ApiV1HomeserversPubkeyRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
   '/api/confirm': typeof ApiConfirmRouteWithChildren
   '/avatars/$pubkey': typeof AvatarsPubkeyRoute
   '/hs/$pubkey': typeof HsPubkeyRoute
+  '/api/admin/account': typeof ApiAdminAccountRoute
+  '/api/admin/flow': typeof ApiAdminFlowRoute
+  '/api/admin/login': typeof ApiAdminLoginRoute
+  '/api/admin/logout': typeof ApiAdminLogoutRoute
+  '/api/admin/me': typeof ApiAdminMeRoute
   '/api/confirm/$id': typeof ApiConfirmIdRoute
   '/api/v1/homeservers': typeof ApiV1HomeserversRouteWithChildren
   '/api/v1/stats': typeof ApiV1StatsRoute
@@ -79,9 +121,15 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
   '/api/confirm': typeof ApiConfirmRouteWithChildren
   '/avatars/$pubkey': typeof AvatarsPubkeyRoute
   '/hs/$pubkey': typeof HsPubkeyRoute
+  '/api/admin/account': typeof ApiAdminAccountRoute
+  '/api/admin/flow': typeof ApiAdminFlowRoute
+  '/api/admin/login': typeof ApiAdminLoginRoute
+  '/api/admin/logout': typeof ApiAdminLogoutRoute
+  '/api/admin/me': typeof ApiAdminMeRoute
   '/api/confirm/$id': typeof ApiConfirmIdRoute
   '/api/v1/homeservers': typeof ApiV1HomeserversRouteWithChildren
   '/api/v1/stats': typeof ApiV1StatsRoute
@@ -91,9 +139,15 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
   '/api/confirm': typeof ApiConfirmRouteWithChildren
   '/avatars/$pubkey': typeof AvatarsPubkeyRoute
   '/hs/$pubkey': typeof HsPubkeyRoute
+  '/api/admin/account': typeof ApiAdminAccountRoute
+  '/api/admin/flow': typeof ApiAdminFlowRoute
+  '/api/admin/login': typeof ApiAdminLoginRoute
+  '/api/admin/logout': typeof ApiAdminLogoutRoute
+  '/api/admin/me': typeof ApiAdminMeRoute
   '/api/confirm/$id': typeof ApiConfirmIdRoute
   '/api/v1/homeservers': typeof ApiV1HomeserversRouteWithChildren
   '/api/v1/stats': typeof ApiV1StatsRoute
@@ -104,9 +158,15 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/admin'
     | '/api/confirm'
     | '/avatars/$pubkey'
     | '/hs/$pubkey'
+    | '/api/admin/account'
+    | '/api/admin/flow'
+    | '/api/admin/login'
+    | '/api/admin/logout'
+    | '/api/admin/me'
     | '/api/confirm/$id'
     | '/api/v1/homeservers'
     | '/api/v1/stats'
@@ -115,9 +175,15 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
+    | '/admin'
     | '/api/confirm'
     | '/avatars/$pubkey'
     | '/hs/$pubkey'
+    | '/api/admin/account'
+    | '/api/admin/flow'
+    | '/api/admin/login'
+    | '/api/admin/logout'
+    | '/api/admin/me'
     | '/api/confirm/$id'
     | '/api/v1/homeservers'
     | '/api/v1/stats'
@@ -126,9 +192,15 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
+    | '/admin'
     | '/api/confirm'
     | '/avatars/$pubkey'
     | '/hs/$pubkey'
+    | '/api/admin/account'
+    | '/api/admin/flow'
+    | '/api/admin/login'
+    | '/api/admin/logout'
+    | '/api/admin/me'
     | '/api/confirm/$id'
     | '/api/v1/homeservers'
     | '/api/v1/stats'
@@ -138,9 +210,15 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  AdminRoute: typeof AdminRoute
   ApiConfirmRoute: typeof ApiConfirmRouteWithChildren
   AvatarsPubkeyRoute: typeof AvatarsPubkeyRoute
   HsPubkeyRoute: typeof HsPubkeyRoute
+  ApiAdminAccountRoute: typeof ApiAdminAccountRoute
+  ApiAdminFlowRoute: typeof ApiAdminFlowRoute
+  ApiAdminLoginRoute: typeof ApiAdminLoginRoute
+  ApiAdminLogoutRoute: typeof ApiAdminLogoutRoute
+  ApiAdminMeRoute: typeof ApiAdminMeRoute
   ApiV1HomeserversRoute: typeof ApiV1HomeserversRouteWithChildren
   ApiV1StatsRoute: typeof ApiV1StatsRoute
 }
@@ -159,6 +237,13 @@ declare module '@tanstack/react-router' {
       path: '/about'
       fullPath: '/about'
       preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/confirm': {
@@ -180,6 +265,41 @@ declare module '@tanstack/react-router' {
       path: '/hs/$pubkey'
       fullPath: '/hs/$pubkey'
       preLoaderRoute: typeof HsPubkeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/account': {
+      id: '/api/admin/account'
+      path: '/api/admin/account'
+      fullPath: '/api/admin/account'
+      preLoaderRoute: typeof ApiAdminAccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/flow': {
+      id: '/api/admin/flow'
+      path: '/api/admin/flow'
+      fullPath: '/api/admin/flow'
+      preLoaderRoute: typeof ApiAdminFlowRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/login': {
+      id: '/api/admin/login'
+      path: '/api/admin/login'
+      fullPath: '/api/admin/login'
+      preLoaderRoute: typeof ApiAdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/logout': {
+      id: '/api/admin/logout'
+      path: '/api/admin/logout'
+      fullPath: '/api/admin/logout'
+      preLoaderRoute: typeof ApiAdminLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/me': {
+      id: '/api/admin/me'
+      path: '/api/admin/me'
+      fullPath: '/api/admin/me'
+      preLoaderRoute: typeof ApiAdminMeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/confirm/$id': {
@@ -239,9 +359,15 @@ const ApiV1HomeserversRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  AdminRoute: AdminRoute,
   ApiConfirmRoute: ApiConfirmRouteWithChildren,
   AvatarsPubkeyRoute: AvatarsPubkeyRoute,
   HsPubkeyRoute: HsPubkeyRoute,
+  ApiAdminAccountRoute: ApiAdminAccountRoute,
+  ApiAdminFlowRoute: ApiAdminFlowRoute,
+  ApiAdminLoginRoute: ApiAdminLoginRoute,
+  ApiAdminLogoutRoute: ApiAdminLogoutRoute,
+  ApiAdminMeRoute: ApiAdminMeRoute,
   ApiV1HomeserversRoute: ApiV1HomeserversRouteWithChildren,
   ApiV1StatsRoute: ApiV1StatsRoute,
 }

@@ -57,6 +57,15 @@ GET /api/v1/homeservers/<pubkey>
 GET /api/v1/stats
 ```
 
+## Admin
+
+`/admin`, signed in with Pubky Ring. The approval grants nothing: it only proves
+a key, which must be `NETKY_ADMIN_KEY`. From there, the admin connects the
+account the application posts with, through a second approval limited to
+`/pub/pubky.app/posts/`. That session is stored encrypted with
+`NETKY_SECRET_KEY` (32 bytes, base64). Without these two variables, the admin
+area stays closed.
+
 ## Stack
 
 TanStack Start (web + API) and a background worker (`src/worker/main.ts`),

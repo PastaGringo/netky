@@ -165,6 +165,24 @@ const MIGRATIONS: Array<string> = [
     SELECT MAX(at) FROM probes WHERE homeserver = pubkey AND ok = 1
   ) WHERE is_pubky IS NOT 0;
   `,
+  // Admin sessions (only a hash of the cookie is kept) and the account the
+  // application posts with (its Pubky session is encrypted, AES-256-GCM).
+  `
+  CREATE TABLE admin_sessions (
+    token_hash TEXT PRIMARY KEY,
+    pubkey     TEXT NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+  CREATE TABLE app_account (
+    id         INTEGER PRIMARY KEY CHECK (id = 1),
+    pubkey     TEXT NOT NULL,
+    name       TEXT,
+    avatar     INTEGER NOT NULL DEFAULT 0,
+    secret_enc TEXT NOT NULL,
+    linked_at  INTEGER NOT NULL,
+    linked_by  TEXT NOT NULL
+  );
+  `,
 ]
 
 function migrate(d: DatabaseSync) {

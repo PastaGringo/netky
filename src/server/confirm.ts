@@ -3,22 +3,10 @@
 // the homeserver to /pub/netky/operates.txt on the operator's own
 // homeserver and signs the session out. Nothing else is written or kept.
 import { randomBytes } from 'node:crypto'
-import { createRequire } from 'node:module'
 import QRCode from 'qrcode'
 import { resolveHomeservers } from '#/core/jobs.ts'
+import { pubky } from './pubky-sdk.ts'
 import { getHomeserver } from './queries.ts'
-
-// Loaded at run time from node_modules: the SDK ships a WebAssembly file the
-// server bundle cannot carry. It also swaps globalThis.fetch for a cookie-aware
-// one, which is harmless here.
-type Sdk = typeof import('@synonymdev/pubky')
-let sdk: Sdk | null = null
-let client: InstanceType<Sdk['Pubky']> | null = null
-function pubky() {
-  sdk ??= createRequire(import.meta.url)('@synonymdev/pubky') as Sdk
-  client ??= new sdk.Pubky()
-  return { sdk, client }
-}
 
 const CAPABILITIES = '/pub/netky/:rw'
 const FILE = '/pub/netky/operates.txt'
