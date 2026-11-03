@@ -19,6 +19,7 @@ import { OFFICIAL_SOURCE } from '#/lib/official'
 import type { Probe } from '#/server/queries'
 import { ConfirmOperator } from '#/components/confirm-operator'
 import { NextCheck } from '#/components/next-check'
+import { RetireNotice } from '#/components/retire-notice'
 import { SecuritySection } from '#/components/security'
 import { ActivitySection, UptimeDays } from '#/components/activity'
 import { NotFound } from './__root'
@@ -85,9 +86,13 @@ function Detail() {
       {h.status === 'not-pubky' ? (
         <p className="mt-4 mb-0 border border-amber/60 bg-panel/90 px-4 py-2 text-sm text-pretty">
           <span className="text-amber">[WARN]</span> This key is published as a
-          homeserver, but the address answers with something else. It is
-          probably a test or a misconfiguration.
+          homeserver, but the address answers with something else: a test, a
+          misconfiguration, or a server that was shut down behind a shared
+          domain.
         </p>
+      ) : null}
+      {h.retiresAt != null ? (
+        <RetireNotice retiresAt={h.retiresAt} serverNow={now} />
       ) : null}
 
       <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">

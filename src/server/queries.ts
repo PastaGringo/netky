@@ -2,7 +2,7 @@
 // Only ever imported from server code.
 import { getDb } from '#/core/db.ts'
 import { OFFICIAL } from '#/lib/official.ts'
-import { isRetired } from '#/lib/retired.ts'
+import { retiresAt } from '#/lib/retired.ts'
 import { type Security, securityScore } from '#/lib/security.ts'
 
 const HOUR = 3_600_000
@@ -27,6 +27,8 @@ export interface Homeserver {
   status: Status
   /** Gone long enough to leave the list. Its own page and API URL remain. */
   retired: boolean
+  /** When it leaves the list if it stays silent; null while it answers. */
+  retiresAt: number | null
   domain: string | null
   port: number | null
   pubkyPort: number | null
@@ -160,11 +162,13 @@ function toHomeserver(
   act?: ActivitySummary,
 ): Homeserver {
   const cdn = r.asn != null ? (CDN_ASNS.get(r.asn) ?? null) : null
+  const leaves = retiresAt(statusOf(r), r.last_alive_at, r.first_seen)
   const base: Omit<Homeserver, 'security'> = {
     pubkey: r.pubkey,
     official: OFFICIAL[r.pubkey] ?? null,
     status: statusOf(r),
-    retired: isRetired(statusOf(r), r.last_alive_at, r.first_seen),
+    retired: leaves != null && leaves <= Date.now(),
+    retiresAt: leaves,
     domain: r.domain,
     port: r.domain_port,
     pubkyPort: r.pubky_port,

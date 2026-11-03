@@ -98,6 +98,13 @@ test('a retired server keeps its own page', () => {
   assert.equal(getHomeserver('recent')?.retired, false)
 })
 
+test('a silent server says when it leaves, one that answers does not', () => {
+  const sevenDays = 7 * DAY
+  assert.equal(getHomeserver('recent')?.retiresAt, now - DAY + sevenDays)
+  assert.equal(getHomeserver('new')?.retiresAt, now - DAY + sevenDays)
+  assert.equal(getHomeserver('alive')?.retiresAt, null)
+})
+
 test('a server comes back at its first answer', async () => {
   answers({ ...table, deleted: pubky })
   await probeAll()
