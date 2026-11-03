@@ -183,6 +183,14 @@ const MIGRATIONS: Array<string> = [
     linked_by  TEXT NOT NULL
   );
   `,
+  // Homeservers already announced, or known when announcements were turned on.
+  `
+  CREATE TABLE announced_homeservers (
+    pubkey   TEXT PRIMARY KEY,
+    at       INTEGER NOT NULL,
+    post_uri TEXT
+  );
+  `,
 ]
 
 function migrate(d: DatabaseSync) {

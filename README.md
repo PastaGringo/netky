@@ -66,6 +66,11 @@ account the application posts with, through a second approval limited to
 `NETKY_SECRET_KEY` (32 bytes, base64). Without these two variables, the admin
 area stays closed.
 
+From the admin area, two kinds of posts can be turned on, both off by default: a
+daily report on the network, and an announcement for each new homeserver (after
+24 h online with 90% uptime, plain domains only, 3 a day at most; servers known
+when it is turned on are not announced).
+
 ## Stack
 
 TanStack Start (web + API) and a background worker (`src/worker/main.ts`),

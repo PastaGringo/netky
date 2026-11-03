@@ -28,8 +28,16 @@ interface Check {
 const button =
   'inline-flex min-h-[44px] items-center border border-cyan px-4 text-cyan hover:bg-cyan hover:text-void disabled:opacity-50'
 
-async function api(path: string, method = 'GET') {
-  const res = await fetch(path, { method }).catch(() => null)
+async function api(path: string, method = 'GET', json?: unknown) {
+  const res = await fetch(path, {
+    method,
+    ...(json === undefined
+      ? {}
+      : {
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(json),
+        }),
+  }).catch(() => null)
   const body = (await res?.json().catch(() => null)) as Record<
     string,
     unknown
@@ -270,6 +278,134 @@ function Dashboard({ me, refresh }: { me: Me; refresh: () => void }) {
           </>
         )}
       </div>
+      {account ? <Publishing /> : null}
+    </>
+  )
+}
+
+interface Last {
+  at: number | null
+  uri: string | null
+  error: string | null
+}
+
+interface PublishingStatus {
+  daily: {
+    enabled: boolean
+    hourUtc: number
+    publishedToday: boolean
+    preview: string
+    last: Last
+  }
+  announcements: { enabled: boolean; pending: Array<string>; last: Last }
+}
+
+function LastResult({ last }: { last: Last }) {
+  if (last.error)
+    return (
+      <p className="m-0 mt-2 text-xs text-red">Last try failed: {last.error}</p>
+    )
+  if (!last.uri) return null
+  return (
+    <p className="m-0 mt-2 text-xs break-all text-dim">
+      Last post {fmtDate(last.at)}: {last.uri}
+    </p>
+  )
+}
+
+function Publishing() {
+  const [status, setStatus] = useState<PublishingStatus | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    api('/api/admin/publishing')
+      .then((s) => setStatus(s as unknown as PublishingStatus))
+      .catch((e: unknown) =>
+        setError(e instanceof Error ? e.message : String(e)),
+      )
+  }, [])
+
+  const send = async (json: unknown) => {
+    setBusy(true)
+    setError(null)
+    try {
+      setStatus(
+        (await api(
+          '/api/admin/publishing',
+          'POST',
+          json,
+        )) as unknown as PublishingStatus,
+      )
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+    setBusy(false)
+  }
+
+  return (
+    <>
+      <h2 className="m-0 mt-8 font-display text-3xl">
+        <span className="text-dim">$</span> publishing
+      </h2>
+      {error ? <p className="mt-2 text-sm text-red">{error}</p> : null}
+      {!status ? (
+        <p className="mt-2 text-sm text-dim">Loading…</p>
+      ) : (
+        <div className="mt-3 space-y-3">
+          <div className="border bg-panel/90 p-4">
+            <label className="flex min-h-[44px] items-center gap-3">
+              <input
+                type="checkbox"
+                className="size-5"
+                checked={status.daily.enabled}
+                disabled={busy}
+                onChange={(e) => send({ daily: e.target.checked })}
+              />
+              <span>Daily report, around {status.daily.hourUtc}:37 UTC</span>
+            </label>
+            <pre className="mt-2 overflow-x-auto border p-3 text-xs whitespace-pre-wrap">
+              {status.daily.preview}
+            </pre>
+            <button
+              type="button"
+              disabled={busy || status.daily.publishedToday}
+              className={`${button} mt-3`}
+              onClick={() => {
+                if (window.confirm('Publish this report on pubky.app now?'))
+                  void send({ publishNow: true })
+              }}
+            >
+              {status.daily.publishedToday
+                ? 'published today'
+                : 'publish it now'}
+            </button>
+            <LastResult last={status.daily.last} />
+          </div>
+          <div className="border bg-panel/90 p-4">
+            <label className="flex min-h-[44px] items-center gap-3">
+              <input
+                type="checkbox"
+                className="size-5"
+                checked={status.announcements.enabled}
+                disabled={busy}
+                onChange={(e) => send({ announcements: e.target.checked })}
+              />
+              <span>Announce new homeservers</span>
+            </label>
+            <p className="m-0 mt-1 text-xs text-dim">
+              After 24 h online with 90% uptime, plain domains only, 3 a day at
+              most. Servers known when you turn this on are not announced.
+            </p>
+            {status.announcements.pending.length ? (
+              <p className="m-0 mt-2 text-xs">
+                Next: {status.announcements.pending.join(', ')}
+              </p>
+            ) : null}
+            <LastResult last={status.announcements.last} />
+          </div>
+        </div>
+      )}
     </>
   )
 }

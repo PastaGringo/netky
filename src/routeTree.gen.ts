@@ -20,6 +20,7 @@ import { Route as ApiAdminFlowRouteImport } from './routes/api/admin/flow'
 import { Route as ApiAdminLoginRouteImport } from './routes/api/admin/login'
 import { Route as ApiAdminLogoutRouteImport } from './routes/api/admin/logout'
 import { Route as ApiAdminMeRouteImport } from './routes/api/admin/me'
+import { Route as ApiAdminPublishingRouteImport } from './routes/api/admin/publishing'
 import { Route as ApiConfirmIdRouteImport } from './routes/api/confirm.$id'
 import { Route as ApiV1HomeserversRouteImport } from './routes/api/v1/homeservers'
 import { Route as ApiV1StatsRouteImport } from './routes/api/v1/stats'
@@ -80,6 +81,11 @@ const ApiAdminMeRoute = ApiAdminMeRouteImport.update({
   path: '/api/admin/me',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminPublishingRoute = ApiAdminPublishingRouteImport.update({
+  id: '/api/admin/publishing',
+  path: '/api/admin/publishing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiConfirmIdRoute = ApiConfirmIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/login': typeof ApiAdminLoginRoute
   '/api/admin/logout': typeof ApiAdminLogoutRoute
   '/api/admin/me': typeof ApiAdminMeRoute
+  '/api/admin/publishing': typeof ApiAdminPublishingRoute
   '/api/confirm/$id': typeof ApiConfirmIdRoute
   '/api/v1/homeservers': typeof ApiV1HomeserversRouteWithChildren
   '/api/v1/stats': typeof ApiV1StatsRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/api/admin/login': typeof ApiAdminLoginRoute
   '/api/admin/logout': typeof ApiAdminLogoutRoute
   '/api/admin/me': typeof ApiAdminMeRoute
+  '/api/admin/publishing': typeof ApiAdminPublishingRoute
   '/api/confirm/$id': typeof ApiConfirmIdRoute
   '/api/v1/homeservers': typeof ApiV1HomeserversRouteWithChildren
   '/api/v1/stats': typeof ApiV1StatsRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/api/admin/login': typeof ApiAdminLoginRoute
   '/api/admin/logout': typeof ApiAdminLogoutRoute
   '/api/admin/me': typeof ApiAdminMeRoute
+  '/api/admin/publishing': typeof ApiAdminPublishingRoute
   '/api/confirm/$id': typeof ApiConfirmIdRoute
   '/api/v1/homeservers': typeof ApiV1HomeserversRouteWithChildren
   '/api/v1/stats': typeof ApiV1StatsRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/api/admin/login'
     | '/api/admin/logout'
     | '/api/admin/me'
+    | '/api/admin/publishing'
     | '/api/confirm/$id'
     | '/api/v1/homeservers'
     | '/api/v1/stats'
@@ -184,6 +194,7 @@ export interface FileRouteTypes {
     | '/api/admin/login'
     | '/api/admin/logout'
     | '/api/admin/me'
+    | '/api/admin/publishing'
     | '/api/confirm/$id'
     | '/api/v1/homeservers'
     | '/api/v1/stats'
@@ -201,6 +212,7 @@ export interface FileRouteTypes {
     | '/api/admin/login'
     | '/api/admin/logout'
     | '/api/admin/me'
+    | '/api/admin/publishing'
     | '/api/confirm/$id'
     | '/api/v1/homeservers'
     | '/api/v1/stats'
@@ -219,6 +231,7 @@ export interface RootRouteChildren {
   ApiAdminLoginRoute: typeof ApiAdminLoginRoute
   ApiAdminLogoutRoute: typeof ApiAdminLogoutRoute
   ApiAdminMeRoute: typeof ApiAdminMeRoute
+  ApiAdminPublishingRoute: typeof ApiAdminPublishingRoute
   ApiV1HomeserversRoute: typeof ApiV1HomeserversRouteWithChildren
   ApiV1StatsRoute: typeof ApiV1StatsRoute
 }
@@ -302,6 +315,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminMeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/publishing': {
+      id: '/api/admin/publishing'
+      path: '/api/admin/publishing'
+      fullPath: '/api/admin/publishing'
+      preLoaderRoute: typeof ApiAdminPublishingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/confirm/$id': {
       id: '/api/confirm/$id'
       path: '/$id'
@@ -368,6 +388,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminLoginRoute: ApiAdminLoginRoute,
   ApiAdminLogoutRoute: ApiAdminLogoutRoute,
   ApiAdminMeRoute: ApiAdminMeRoute,
+  ApiAdminPublishingRoute: ApiAdminPublishingRoute,
   ApiV1HomeserversRoute: ApiV1HomeserversRouteWithChildren,
   ApiV1StatsRoute: ApiV1StatsRoute,
 }

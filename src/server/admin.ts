@@ -2,17 +2,13 @@
 // proves a key, which must be NETKY_ADMIN_KEY. The admin then links the account
 // the application posts with, through a second approval limited to its posts
 // folder. That session is stored encrypted with NETKY_SECRET_KEY.
-import {
-  createCipheriv,
-  createDecipheriv,
-  createHash,
-  randomBytes,
-} from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import QRCode from 'qrcode'
 import type { Capabilities } from '@synonymdev/pubky'
 import { getDb } from '#/core/db.ts'
 import { avatarPath } from '#/core/jobs.ts'
 import { fetchProfile } from '#/core/nexus.ts'
+import { decrypt, encrypt, hasSecretKey } from '#/core/vault.ts'
 import { PUBKEY_RE } from '#/core/z32.ts'
 import { pubky } from './pubky-sdk.ts'
 
@@ -38,34 +34,6 @@ function adminKey(): string | null {
     .toLowerCase()
     .replace(/^pubky/, '')
   return key && PUBKEY_RE.test(key) ? key : null
-}
-
-function secretKey(): Buffer {
-  const key = Buffer.from(process.env.NETKY_SECRET_KEY ?? '', 'base64')
-  if (key.length !== 32)
-    throw new AdminError(503, 'NETKY_SECRET_KEY is not configured.')
-  return key
-}
-
-function encrypt(plain: string): string {
-  const iv = randomBytes(12)
-  const cipher = createCipheriv('aes-256-gcm', secretKey(), iv)
-  const data = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()])
-  return Buffer.concat([iv, cipher.getAuthTag(), data]).toString('base64')
-}
-
-function decrypt(stored: string): string {
-  const raw = Buffer.from(stored, 'base64')
-  const decipher = createDecipheriv(
-    'aes-256-gcm',
-    secretKey(),
-    raw.subarray(0, 12),
-  )
-  decipher.setAuthTag(raw.subarray(12, 28))
-  return Buffer.concat([
-    decipher.update(raw.subarray(28)),
-    decipher.final(),
-  ]).toString('utf8')
 }
 
 function cookie(request: Request, name: string): string | null {
@@ -229,7 +197,9 @@ export async function startLogin() {
 
 export async function startLink(request: Request) {
   const admin = requireAdmin(request)
-  secretKey() // refuse now rather than after the approval
+  // Refuse now rather than after the approval.
+  if (!hasSecretKey())
+    throw new AdminError(503, 'NETKY_SECRET_KEY is not configured.')
   if (getAppAccount())
     throw new AdminError(409, 'Disconnect the current account first.')
   const adminSession = cookie(request, SESSION_COOKIE) as string

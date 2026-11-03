@@ -1,6 +1,8 @@
 // Background worker: discovery, resolution and probes. Runs next to the web
 // server (same image, same SQLite file) with `node src/worker/main.ts`.
+import { spawn } from 'node:child_process'
 import { Cron } from 'croner'
+import { publishingDue } from '../server/publishing.ts'
 import { getDb, getMeta } from '../core/db.ts'
 import { geoDatabasesPresent, refreshGeoDatabases } from '../core/geo.ts'
 import {
@@ -16,6 +18,22 @@ import {
   resolveHomeservers,
   resolveUsers,
 } from '../core/jobs.ts'
+
+/** Publishing runs apart, and only when there is something to publish. */
+async function runPublishingProcess() {
+  if (!publishingDue()) return
+  await new Promise<void>((resolve) => {
+    const child = spawn(process.execPath, ['src/worker/publish.ts'], {
+      stdio: 'inherit',
+      timeout: 5 * 60_000,
+    })
+    child.on('close', () => resolve())
+    child.on('error', (e) => {
+      log('publish failed to start:', e)
+      resolve()
+    })
+  })
+}
 
 function job(name: string, pattern: string, fn: () => Promise<void> | void) {
   return new Cron(
@@ -42,6 +60,7 @@ job('feeds', '1-59/5 * * * *', () => syncFeeds())
 job('read-tests', '33 4 * * *', readTests)
 job('snapshot', '50 23 * * *', dailySnapshot)
 job('geo', '0 5 3 * *', refreshGeoDatabases)
+job('publish', '37 * * * *', runPublishingProcess)
 
 // First boot: fill the database right away instead of waiting for the crons.
 async function bootstrap() {

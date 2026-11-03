@@ -23,6 +23,8 @@ COPY --chown=node:node package.json ./
 COPY --chown=node:node src/core ./src/core
 COPY --chown=node:node src/worker ./src/worker
 COPY --chown=node:node src/lib ./src/lib
+# The worker's publishing process uses these two.
+COPY --chown=node:node src/server/queries.ts src/server/publishing.ts ./src/server/
 COPY --chown=node:node scripts/start.mjs ./scripts/start.mjs
 # A named volume mounted here inherits this ownership on first use.
 RUN mkdir -p /data && chown node:node /data

@@ -41,6 +41,9 @@ importers:
       nitro:
         specifier: 3.0.260903-beta
         version: 3.0.260903-beta
+      pubky-app-specs:
+        specifier: 0.8.1
+        version: 0.8.1
       qrcode:
         specifier: 1.5.4
         version: 1.5.4
@@ -1603,6 +1606,9 @@ packages:
     resolution: {integrity: sha512-skGHTH1Yb9QvaTC4hWnRTzEYtCpApF0UMBPz+t/0ZPzP8ihefo/btKd+QA7pUE0fEwA1SbS/NmhyEcstdXOIdA==}
     engines: {node: '>=14'}
     hasBin: true
+
+  pubky-app-specs@0.8.1:
+    resolution: {integrity: sha512-sE/440wZc5XNVWa+/aIyDga0399LMeoJg/hdfEx+CZLO3FqU1CDlQaV1a5z8V2x0YIVutnnSK3T3iL41JLhreg==}
 
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
@@ -3357,6 +3363,8 @@ snapshots:
   prelude-ls@1.2.1: {}
 
   prettier@3.9.10: {}
+
+  pubky-app-specs@0.8.1: {}
 
   punycode@2.3.1: {}
 
