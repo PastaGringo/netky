@@ -381,14 +381,6 @@ function liveness(f: FeedRow | undefined, now: number): ActivitySummary {
       liveness: null,
       indexing: false,
     }
-  // Mid-history, the newest post seen may be years old: no verdict yet.
-  if (!f.backfilled)
-    return {
-      lastActivityAt: null,
-      events24h: 0,
-      liveness: null,
-      indexing: true,
-    }
   const last = Math.max(f.last_event_at ?? 0, f.last_post_at ?? 0) || null
   let l: Liveness | null = null
   if (last && now - last < 7 * DAY) l = 'active'
@@ -401,7 +393,14 @@ function liveness(f: FeedRow | undefined, now: number): ActivitySummary {
     (!f.last_event_at || now - f.last_event_at > 7 * DAY)
   )
     l = 'ghost'
-  return { lastActivityAt: last, events24h: 0, liveness: l, indexing: false }
+  // The end of the feed is read live from the first pass, so the verdict holds
+  // even while the history is still being read.
+  return {
+    lastActivityAt: last,
+    events24h: 0,
+    liveness: l,
+    indexing: f.backfilled !== 1,
+  }
 }
 
 /** Last activity, events of the last 24 h and liveness of every homeserver. */

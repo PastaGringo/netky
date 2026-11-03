@@ -134,7 +134,7 @@ function ActivityBody({ a, now }: { a: Activity; now: number }) {
       <p className="mt-2 mb-0 text-xs text-dim">
         {a.backfilled
           ? `${a.eventsTotal} public writes read from its feed · live tracking since ${fmtDate(a.liveSince)}`
-          : `Reading its history: ${a.eventsTotal} public writes so far.`}
+          : `Live since ${fmtDate(a.liveSince)}; still reading its history (${a.eventsTotal} writes so far), so totals and the posts chart are partial.`}
       </p>
 
       <div className="grid gap-x-6 md:grid-cols-2">

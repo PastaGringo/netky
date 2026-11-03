@@ -6,6 +6,17 @@
 const USER_AGENT = 'netky/0.1 (+https://netky.pubky.pastalabs.dev/about)'
 export const FEED_PAGE = 1000 // the homeserver's maximum
 
+/** The homeserver asked us to slow down: stop this pass, retry later. */
+export class RateLimited extends Error {
+  retryAfterSeconds: number
+  constructor(retryAfterSeconds: number) {
+    super(`rate limited, retry in ${retryAfterSeconds}s`)
+    this.retryAfterSeconds = retryAfterSeconds
+  }
+}
+
+export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
 export interface FeedEvent {
   op: 'PUT' | 'DEL'
   user: string
@@ -29,6 +40,10 @@ export async function fetchFeed(
       signal: AbortSignal.timeout(30_000),
     },
   )
+  if (res.status === 429) {
+    const wait = Number(res.headers.get('retry-after'))
+    throw new RateLimited(Number.isFinite(wait) && wait > 0 ? wait : 300)
+  }
   if (!res.ok) throw new Error(`events feed answered HTTP ${res.status}`)
   const text = await res.text()
   const events: Array<FeedEvent> = []
@@ -42,6 +57,36 @@ export async function fetchFeed(
     if (m) events.push({ op: m[1] as 'PUT' | 'DEL', user: m[2], path: m[3] })
   }
   return { events, cursor: next, bytes: text.length }
+}
+
+/**
+ * Number of the last event in the feed. Cursors are event numbers, and the
+ * feed answers nothing past the end: double until empty, then bisect.
+ * About 2 × log2(events) requests of one line each.
+ */
+export async function findFeedHead(
+  domain: string,
+  port: number | null,
+): Promise<number> {
+  const hasAfter = async (c: number) => {
+    await sleep(600) // gentle: these are many small requests
+    return (await fetchFeed(domain, port, String(c), 1)).events.length > 0
+  }
+  if (!(await hasAfter(0))) return 0
+  let lo = 0
+  let hi = 1024
+  while (await hasAfter(hi)) {
+    lo = hi
+    hi *= 2
+    if (hi > 2 ** 40) throw new Error('events feed has no end')
+  }
+  // Invariant: events after lo, none after hi.
+  while (hi - lo > 1) {
+    const mid = Math.floor((lo + hi) / 2)
+    if (await hasAfter(mid)) lo = mid
+    else hi = mid
+  }
+  return hi
 }
 
 export type Kind =

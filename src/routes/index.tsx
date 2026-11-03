@@ -403,7 +403,7 @@ function LastActive({ h, now }: { h: Homeserver; now: number }) {
         GHOST
       </span>
     )
-  if (h.activityIndexing)
+  if (h.activityIndexing && !h.lastActivityAt)
     return (
       <span
         className="text-dim"

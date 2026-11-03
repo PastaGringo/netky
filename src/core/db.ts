@@ -151,6 +151,12 @@ const MIGRATIONS: Array<string> = [
   ALTER TABLE homeservers ADD COLUMN read_bytes INTEGER;
   ALTER TABLE homeservers ADD COLUMN read_at INTEGER;
   `,
+  // Live reading from the end of the feed while the history is still read.
+  `
+  ALTER TABLE feed_state ADD COLUMN live_cursor TEXT;
+  ALTER TABLE feed_state ADD COLUMN backfill_end TEXT;
+  ALTER TABLE feed_state ADD COLUMN pause_until INTEGER; -- after a 429
+  `,
 ]
 
 function migrate(d: DatabaseSync) {

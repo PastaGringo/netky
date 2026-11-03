@@ -5,6 +5,9 @@ import {
   type FeedEvent,
   classify,
   fetchFeed,
+  findFeedHead,
+  RateLimited,
+  sleep,
   postTime,
 } from './feed.ts'
 import { fetchProfile, listNexusUsers } from './nexus.ts'
@@ -545,6 +548,19 @@ export async function syncFeeds(onlyPubkey?: string) {
   if (!onlyPubkey) log(`feeds: ${servers.length} servers, ${total} new events`)
 }
 
+interface FeedStateRow {
+  cursor: string
+  backfilled: number
+  live_cursor: string | null
+  backfill_end: string | null
+}
+
+/**
+ * Two readers per server. The live one follows the end of the feed and dates
+ * what it reads, from the first pass on. While the history is not fully read,
+ * a second one reads it from the start up to where live reading began, so no
+ * event is counted twice. Cursors are event numbers.
+ */
 async function syncFeed(
   pubkey: string,
   domain: string,
@@ -555,44 +571,134 @@ async function syncFeed(
     pubkey,
   )
   const state = db
-    .prepare('SELECT * FROM feed_state WHERE homeserver = ?')
-    .get(pubkey) as {
-    cursor: string
-    backfilled: number
-  }
-  let cursor = state.cursor
-  let backfilled = state.backfilled === 1
-  let seen = 0
+    .prepare(
+      'SELECT cursor, backfilled, live_cursor, backfill_end FROM feed_state WHERE homeserver = ?',
+    )
+    .get(pubkey) as unknown as FeedStateRow
   const now = Date.now()
+  const paused = db
+    .prepare('SELECT pause_until FROM feed_state WHERE homeserver = ?')
+    .get(pubkey) as {
+    pause_until: number | null
+  }
+  if (paused.pause_until && paused.pause_until > now) return 0
   const hour = Math.floor(now / HOUR) * HOUR
+  const save = db.prepare(
+    'UPDATE feed_state SET events_total = events_total + ?, checked_at = ?, error = NULL WHERE homeserver = ?',
+  )
+  let seen = 0
   try {
-    for (let page = 0; page < FEED_MAX_PAGES; page++) {
-      const { events, cursor: next } = await fetchFeed(domain, port, cursor)
-      if (events.length) {
-        // History is not dated; only events read after the backfill are.
-        const live = backfilled
-        transaction(() => recordEvents(pubkey, events, live ? now : null, hour))
-        seen += events.length
-      }
-      cursor = next
-      const last = events.length < FEED_PAGE
-      db.prepare(
-        'UPDATE feed_state SET cursor = ?, events_total = events_total + ?, checked_at = ?, error = NULL WHERE homeserver = ?',
-      ).run(cursor, events.length, now, pubkey)
-      if (last) {
-        if (!backfilled) {
-          backfilled = true
+    if (state.backfilled) {
+      // History done: `cursor` is the live reader.
+      seen += await readFeed(
+        domain,
+        port,
+        state.cursor,
+        null,
+        (events, next) => {
+          transaction(() => recordEvents(pubkey, events, now, hour))
           db.prepare(
-            'UPDATE feed_state SET backfilled = 1, live_since = ? WHERE homeserver = ?',
-          ).run(now, pubkey)
-        }
-        break
-      }
+            'UPDATE feed_state SET cursor = ? WHERE homeserver = ?',
+          ).run(next, pubkey)
+          save.run(events.length, now, pubkey)
+        },
+      )
+      db.prepare(
+        'UPDATE feed_state SET checked_at = ?, error = NULL WHERE homeserver = ?',
+      ).run(now, pubkey)
+      return seen
     }
+
+    let live = state.live_cursor
+    let end = state.backfill_end
+    if (live == null || end == null) {
+      const head = await findFeedHead(domain, port)
+      live = end = String(head)
+      db.prepare(
+        'UPDATE feed_state SET live_cursor = ?, backfill_end = ?, live_since = COALESCE(live_since, ?) WHERE homeserver = ?',
+      ).run(live, end, now, pubkey)
+    }
+    // Live first, so recent activity shows up even mid-history.
+    seen += await readFeed(domain, port, live, null, (events, next) => {
+      transaction(() => recordEvents(pubkey, events, now, hour))
+      db.prepare(
+        'UPDATE feed_state SET live_cursor = ? WHERE homeserver = ?',
+      ).run(next, pubkey)
+      save.run(events.length, now, pubkey)
+    })
+    // Then a slice of history, never past where live reading began.
+    let done = false
+    seen += await readFeed(
+      domain,
+      port,
+      state.cursor,
+      Number(end),
+      (events, next, reachedEnd) => {
+        transaction(() => recordEvents(pubkey, events, null, hour))
+        db.prepare('UPDATE feed_state SET cursor = ? WHERE homeserver = ?').run(
+          next,
+          pubkey,
+        )
+        save.run(events.length, now, pubkey)
+        done = reachedEnd
+      },
+    )
+    if (done || Number(state.cursor) >= Number(end)) {
+      // History read: the live cursor becomes the only one.
+      db.prepare(
+        'UPDATE feed_state SET backfilled = 1, cursor = live_cursor, live_cursor = NULL WHERE homeserver = ?',
+      ).run(pubkey)
+    }
+    db.prepare(
+      'UPDATE feed_state SET checked_at = ?, error = NULL WHERE homeserver = ?',
+    ).run(now, pubkey)
   } catch (e) {
+    if (e instanceof RateLimited)
+      db.prepare(
+        'UPDATE feed_state SET pause_until = ? WHERE homeserver = ?',
+      ).run(now + e.retryAfterSeconds * 1000, pubkey)
     db.prepare(
       'UPDATE feed_state SET checked_at = ?, error = ? WHERE homeserver = ?',
     ).run(now, errorMessage(e), pubkey)
+  }
+  return seen
+}
+
+/**
+ * Reads up to FEED_MAX_PAGES pages from `cursor`. With `until`, stops at that
+ * event number (limits the last page so as not to read past it).
+ */
+async function readFeed(
+  domain: string,
+  port: number | null,
+  cursor: string,
+  until: number | null,
+  onPage: (events: Array<FeedEvent>, next: string, reachedEnd: boolean) => void,
+): Promise<number> {
+  let seen = 0
+  for (let page = 0; page < FEED_MAX_PAGES; page++) {
+    if (page) await sleep(500) // one page every half second at most
+    let limit = FEED_PAGE
+    if (until != null) {
+      const left = until - Number(cursor)
+      if (!(left > 0)) {
+        onPage([], cursor, true)
+        break
+      }
+      limit = Math.min(FEED_PAGE, left)
+    }
+    const { events, cursor: next } = await fetchFeed(
+      domain,
+      port,
+      cursor,
+      limit,
+    )
+    const reachedEnd =
+      events.length < limit || (until != null && Number(next) >= until)
+    onPage(events, next, reachedEnd)
+    seen += events.length
+    cursor = next
+    if (reachedEnd) break
   }
   return seen
 }
