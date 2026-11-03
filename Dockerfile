@@ -22,6 +22,7 @@ COPY --from=build --chown=node:node /repo/.output ./.output
 COPY --chown=node:node package.json ./
 COPY --chown=node:node src/core ./src/core
 COPY --chown=node:node src/worker ./src/worker
+COPY --chown=node:node src/lib ./src/lib
 COPY --chown=node:node scripts/start.mjs ./scripts/start.mjs
 # A named volume mounted here inherits this ownership on first use.
 RUN mkdir -p /data && chown node:node /data
